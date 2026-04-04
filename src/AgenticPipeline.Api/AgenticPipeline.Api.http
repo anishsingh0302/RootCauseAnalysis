@@ -1,0 +1,6 @@
+@AgenticPipeline.Api_HostAddress = http://localhost:5005
+
+GET {{AgenticPipeline.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
