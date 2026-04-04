@@ -3,7 +3,8 @@
     "allow": [
       "Bash(chmod +x \"C:\\\\Anish\\\\Source\\\\Agentic_Pipeline\\\\aws-helper.sh\")",
       "Bash(dotnet add package:*)",
-      "Bash(dotnet build:*)"
+      "Bash(dotnet build:*)",
+      "Bash(dir:*)"
     ]
   }
 }
