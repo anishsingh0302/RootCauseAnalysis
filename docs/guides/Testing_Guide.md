@@ -25,8 +25,8 @@ The complete flow:
 
 **Option A: Using SSO Script (Recommended)**
 ```powershell
-cd C:\Anish\Source\Agentic_Pipeline
-.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "anishuser1" -Region "us-west-2"
+cd <PROJECT_ROOT>
+.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "YOUR_AWS_PROFILE" -Region "us-west-2"
 ```
 
 This will:
@@ -67,7 +67,7 @@ Expected output:
 
 ### Option B: Command Line
 ```powershell
-cd C:\Anish\Source\Agentic_Pipeline\src\AgenticPipeline.Api
+cd <PROJECT_ROOT>\src\AgenticPipeline.Api
 dotnet run
 ```
 
@@ -134,9 +134,9 @@ Invoke-RestMethod -Uri "https://localhost:$port/api/pipeline/health" -Method GET
 
 3. **Prepare Sample Log**
    - Open one of these sample files:
-     - `C:\Anish\Source\Agentic_Pipeline\SampleData\build-failure-compilation.log`
-     - `C:\Anish\Source\Agentic_Pipeline\SampleData\build-failure-test.log`
-     - `C:\Anish\Source\Agentic_Pipeline\SampleData\build-failure-dependency.log`
+     - `<PROJECT_ROOT>\SampleData\build-failure-compilation.log`
+     - `<PROJECT_ROOT>\SampleData\build-failure-test.log`
+     - `<PROJECT_ROOT>\SampleData\build-failure-dependency.log`
    - Copy the entire contents
 
 4. **Send Request**
@@ -158,7 +158,7 @@ Invoke-RestMethod -Uri "https://localhost:$port/api/pipeline/health" -Method GET
 $port = 7xxx  # Replace with actual port
 
 # Read sample log file
-$logContent = Get-Content "C:\Anish\Source\Agentic_Pipeline\SampleData\build-failure-compilation.log" -Raw
+$logContent = Get-Content "<PROJECT_ROOT>\SampleData\build-failure-compilation.log" -Raw
 
 # Create request body
 $body = @{
@@ -343,7 +343,7 @@ Unable to get IAM security credentials
 **Solution:**
 ```powershell
 # Refresh AWS credentials
-.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "anishuser1" -Region "us-west-2"
+.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "YOUR_AWS_PROFILE" -Region "us-west-2"
 
 # Verify
 .\scripts\utils\test-env.ps1

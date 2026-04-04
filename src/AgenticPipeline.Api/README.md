@@ -367,7 +367,7 @@ The API needs AWS credentials to call Bedrock. Options:
 
 **Option 1: Environment Variables (Current Setup)**
 ```powershell
-.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "anishuser1" -Region "us-west-2"
+.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "XXXXXXXXX" -Region "us-west-2"
 ```
 Sets:
 - `AWS_ACCESS_KEY_ID`
@@ -377,7 +377,7 @@ Sets:
 
 **Option 2: AWS Profile**
 ```bash
-export AWS_PROFILE=anishuser1
+export AWS_PROFILE=XXXXXXXXX
 export AWS_SDK_LOAD_CONFIG=1
 ```
 
@@ -487,7 +487,7 @@ Error: Unable to get IAM security credentials
 ```
 **Solution:** Run SSO credential script
 ```powershell
-.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "anishuser1" -Region "us-west-2"
+.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "XXXXXXXXX" -Region "us-west-2"
 ```
 
 ---

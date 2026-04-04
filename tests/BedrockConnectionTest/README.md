@@ -21,11 +21,11 @@ For users with AWS SSO (federated login), use the persistent credential script:
 1. Open PowerShell (as Administrator recommended)
 2. Navigate to the test directory:
    ```powershell
-   cd C:\Anish\Source\Agentic_Pipeline\tests\BedrockConnectionTest
+   cd <PROJECT_ROOT>\tests\BedrockConnectionTest
    ```
 3. Run the SSO credential script:
    ```powershell
-   .\set-sso-creds-persistent.ps1 -ProfileName "anishuser1" -Region "us-west-2"
+   .\set-sso-creds-persistent.ps1 -ProfileName "YOUR_AWS_PROFILE" -Region "us-west-2"
    ```
 4. The script will:
    - Verify AWS CLI is installed
@@ -126,7 +126,7 @@ The region is shown in the **top-right corner** of the AWS Console (next to your
 
 1. **Navigate to the test directory:**
    ```bash
-   cd C:\Anish\Source\Agentic_Pipeline\tests\BedrockConnectionTest
+   cd <PROJECT_ROOT>\tests\BedrockConnectionTest
    ```
 
 2. **Run the application:**

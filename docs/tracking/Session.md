@@ -246,7 +246,7 @@
 
 4. **Project Status:**
    - Test app successfully builds (no errors, only harmless NuGet warnings)
-   - Test app location: `C:\Anish\Source\Agentic_Pipeline\tests\BedrockConnectionTest`
+   - Test app location: `C:\XXXXX\Source\Agentic_Pipeline\tests\BedrockConnectionTest`
    - Model ID to test: `anthropic.claude-sonnet-4-5-v1:0`
    - Recommended region: `us-east-1`
 
@@ -443,7 +443,7 @@
 **Key Discoveries:**
 - AWS CLI SSO cache location: `~/.aws/cli/cache/*.json`
 - Credential structure: `{ProviderType: "sso", Credentials: {AccessKeyId, SecretAccessKey, SessionToken, Expiration}}`
-- User's profile name: `anishuser1` (lowercase, not `anishUser1`)
+- User's profile name: `XXXXXXXXX` (lowercase, not `XXXXXXXXX`)
 - User's region: `us-west-2` (not `us-east-1`)
 - Available models include: claude-sonnet-4-6, claude-opus-4-6-v1, claude-3-7-sonnet, etc.
 - Inference profile format: `us.anthropic.{model-id}` or `global.anthropic.{model-id}`
@@ -461,12 +461,12 @@ PowerShell Script → Extract SSO Cache → Set USER Env Vars → Launch VS → 
 ```
 
 ### User's AWS Configuration:
-- Profile: `anishuser1`
+- Profile: `XXXXXXXXX`
 - Region: `us-west-2`
-- SSO Session: `anishUser1`
-- SSO Start URL: `https://symplr.awsapps.com/start`
-- Account ID: `710271940792`
-- Role: `AIAccess-GL`
+- SSO Session: `XXXXXXXXX`
+- SSO Start URL: `https://xxxxxx.awsapps.com/start`
+- Account ID: `xxxxxxxxxxxxxx`
+- Role: `XXXXXXXXX`
 - Authentication: Federated SSO (email-based)
 
 ### Current state:

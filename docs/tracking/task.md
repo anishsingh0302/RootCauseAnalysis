@@ -19,12 +19,12 @@
 - [x] Verified model access in region **us-west-2**
 
 #### B. AWS SSO Authentication Setup
-- [x] Using federated SSO with profile `anishuser1`
+- [x] Using federated SSO with profile `XXXXXXXXX`
 - [x] Created `set-sso-creds-persistent.ps1` to extract SSO credentials
 - [x] Set USER-level environment variables for persistent credentials
 - [x] Automated Visual Studio launch after credential setup
-- [x] Account ID: `710271940792`
-- [x] Role: `AIAccess-GL`
+- [x] Account ID: `xxxxxxxxxxxxxx`
+- [x] Role: `XXXXXXXXX`
 - [x] Region: **us-west-2**
 
 #### C. AWS Bedrock Inference Profiles
@@ -37,7 +37,7 @@
 ### 2. Test Bedrock Connection
 **Status:** ✅ Complete
 
-**Location:** `C:\Anish\Source\Agentic_Pipeline\tests\BedrockConnectionTest`
+**Location:** `C:\XXXXX\Source\Agentic_Pipeline\tests\BedrockConnectionTest`
 
 #### Completed Steps:
 1. [x] Created test console application
@@ -193,7 +193,7 @@
   - `anthropic.claude-3-sonnet-20240229-v1:0` (older, no prefix needed)
 
 ### SSO Credential Workflow
-1. Run `set-sso-creds-persistent.ps1` with profile `anishuser1`
+1. Run `set-sso-creds-persistent.ps1` with profile `XXXXXXXXX`
 2. Script extracts credentials from `~/.aws/cli/cache/*.json`
 3. Sets USER-level environment variables
 4. Launches Visual Studio automatically

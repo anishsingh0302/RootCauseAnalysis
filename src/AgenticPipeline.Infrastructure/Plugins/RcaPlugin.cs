@@ -63,7 +63,10 @@ Return ONLY valid JSON, no additional text or markdown.";
         // Parse the JSON response into RcaResult
         try
         {
-            var rcaResult = JsonSerializer.Deserialize<RcaJsonResponse>(response.Content, new JsonSerializerOptions
+            // Strip markdown code fences if present (Claude often wraps JSON in ```json ... ```)
+            var jsonContent = StripMarkdownCodeFences(response.Content);
+
+            var rcaResult = JsonSerializer.Deserialize<RcaJsonResponse>(jsonContent, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             });
@@ -96,5 +99,29 @@ Return ONLY valid JSON, no additional text or markdown.";
         {
             throw new InvalidOperationException($"Failed to parse RCA response: {ex.Message}. Response was: {response.Content}", ex);
         }
+    }
+
+    private static string StripMarkdownCodeFences(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+            return content;
+
+        var trimmed = content.Trim();
+
+        // Remove ```json or ``` prefix
+        if (trimmed.StartsWith("```"))
+        {
+            var firstNewLine = trimmed.IndexOf('\n');
+            if (firstNewLine >= 0)
+                trimmed = trimmed[(firstNewLine + 1)..];
+        }
+
+        // Remove trailing ```
+        if (trimmed.EndsWith("```"))
+        {
+            trimmed = trimmed[..^3];
+        }
+
+        return trimmed.Trim();
     }
 }

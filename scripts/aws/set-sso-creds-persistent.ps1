@@ -128,8 +128,8 @@ Write-Host ""
 # Launch Visual Studio with the solution
 Write-Host "Step 5: Launching Visual Studio..." -ForegroundColor Yellow
 
-#$solutionPath = "C:\Anish\Source\Agentic_Pipeline\tests\BedrockConnectionTest\BedrockConnectionTest.sln"
-$solutionPath = "C:\Anish\Source\Agentic_Pipeline\AgenticPipeline.sln"
+#$solutionPath = "C:\XXXXX\Source\Agentic_Pipeline\tests\BedrockConnectionTest\BedrockConnectionTest.sln"
+$solutionPath = "C:\XXXXX\Source\Agentic_Pipeline\AgenticPipeline.sln"
 
 # Find Visual Studio Professional 2022
 #$vsPath = "${env:ProgramFiles}\Microsoft Visual Studio\2022\Professional\Common7\IDE\devenv.exe"

@@ -112,9 +112,9 @@
 ```
 Model ID:    us.anthropic.claude-sonnet-4-6
 Region:      us-west-2
-Profile:     anishuser1
-Account:     710271940792
-Role:        AIAccess-GL
+Profile:     XXXXXXXXX
+Account:     xxxxxxxxxxxxxx
+Role:        XXXXXXXXX
 Auth Type:   AWS SSO (Federated)
 ```
 
@@ -146,14 +146,14 @@ Documentation/
 
 ### 1. Start New Visual Studio Session
 ```powershell
-cd C:\Anish\Source\Agentic_Pipeline\tests\BedrockConnectionTest
-.\set-sso-creds-persistent.ps1 -ProfileName "anishuser1" -Region "us-west-2"
+cd C:\XXXXX\Source\Agentic_Pipeline\tests\BedrockConnectionTest
+.\set-sso-creds-persistent.ps1 -ProfileName "XXXXXXXXX" -Region "us-west-2"
 # Visual Studio launches automatically
 ```
 
 ### 2. Create Main Solution
 ```powershell
-cd C:\Anish\Source\Agentic_Pipeline
+cd C:\XXXXX\Source\Agentic_Pipeline
 dotnet new sln -n AgenticPipeline
 dotnet new webapi -n AgenticPipeline.Api
 dotnet new classlib -n AgenticPipeline.Core
@@ -207,7 +207,7 @@ dotnet add package AWSSDK.Core
 
 ### Refresh SSO Credentials
 ```powershell
-.\tests\BedrockConnectionTest\set-sso-creds-persistent.ps1 -ProfileName "anishuser1" -Region "us-west-2"
+.\tests\BedrockConnectionTest\set-sso-creds-persistent.ps1 -ProfileName "XXXXXXXXX" -Region "us-west-2"
 ```
 
 ### Verify Environment Variables

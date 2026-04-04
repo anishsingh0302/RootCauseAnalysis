@@ -361,3 +361,14 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Claude Code local settings
+.claude/
+
+# Environment variables
+*.env
+.env.*
+
+# Local configuration overrides
+appsettings.*.local.json
+**/appsettings.Local.json

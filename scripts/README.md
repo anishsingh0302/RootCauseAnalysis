@@ -21,7 +21,7 @@ scripts/
 
 **Usage:**
 ```powershell
-.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "anishuser1" -Region "us-west-2"
+.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "XXXXXXXXX" -Region "us-west-2"
 ```
 
 **Features:**
@@ -42,7 +42,7 @@ scripts/
 
 **Usage:**
 ```powershell
-.\scripts\aws\set-sso-creds.ps1 -ProfileName "anishuser1" -Region "us-west-2"
+.\scripts\aws\set-sso-creds.ps1 -ProfileName "XXXXXXXXX" -Region "us-west-2"
 ```
 
 **Features:**
@@ -101,7 +101,7 @@ scripts/
 AWS_ACCESS_KEY_ID:     ASIA2KX4BX...
 AWS_SECRET_ACCESS_KEY: ****
 AWS_SESSION_TOKEN:     SET
-AWS_PROFILE:           anishuser1
+AWS_PROFILE:           XXXXXXXXX
 AWS_REGION:            us-west-2
 ```
 
@@ -117,7 +117,7 @@ AWS_REGION:            us-west-2
 ### For Visual Studio Development:
 ```powershell
 # 1. Set credentials (launches VS automatically)
-.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "anishuser1" -Region "us-west-2"
+.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "XXXXXXXXX" -Region "us-west-2"
 
 # 2. Press F5 in Visual Studio to run the API
 ```
@@ -125,7 +125,7 @@ AWS_REGION:            us-west-2
 ### For Command Line Development:
 ```powershell
 # 1. Set credentials for current session
-.\scripts\aws\set-sso-creds.ps1 -ProfileName "anishuser1" -Region "us-west-2"
+.\scripts\aws\set-sso-creds.ps1 -ProfileName "XXXXXXXXX" -Region "us-west-2"
 
 # 2. Verify environment
 .\scripts\utils\test-env.ps1
@@ -170,7 +170,7 @@ dotnet run
 Install AWS CLI: https://aws.amazon.com/cli/
 
 ### "The config profile could not be found"
-Check your profile name in `~/.aws/config` - it might be lowercase (`anishuser1` not `anishUser1`)
+Check your profile name in `~/.aws/config` - it might be lowercase (`XXXXXXXXX` not `XXXXXXXXX`)
 
 ### "Script is not digitally signed"
 Run PowerShell as Administrator and execute:

@@ -9,8 +9,8 @@
 ### Step 1: Set AWS Credentials (1 minute)
 
 ```powershell
-cd C:\Anish\Source\Agentic_Pipeline
-.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "anishuser1" -Region "us-west-2"
+cd <PROJECT_ROOT>
+.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "YOUR_AWS_PROFILE" -Region "us-west-2"
 ```
 
 ✅ **What this does:** Extracts AWS credentials from SSO and sets them as environment variables
@@ -67,7 +67,7 @@ In Swagger UI:
 
 Open this file in Notepad:
 ```
-C:\Anish\Source\Agentic_Pipeline\SampleData\build-failure-compilation.log
+<PROJECT_ROOT>\SampleData\build-failure-compilation.log
 ```
 
 **Copy the entire contents** (Ctrl+A, Ctrl+C)

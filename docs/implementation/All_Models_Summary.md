@@ -1,6 +1,6 @@
 # All Models Summary - Final Positional Record Form
 
-**Status:** ✅ All models converted to positional records
+**Status:** ✅ All models converted to positional records (7 total)
 **Date:** 2026-04-01
 **Reference:** [Microsoft - Use record types](https://learn.microsoft.com/en-us/dotnet/csharp/tutorials/records)
 
@@ -8,7 +8,11 @@
 
 ## Complete Model Definitions
 
-All models in `AgenticPipeline.Core.Models` are now **immutable positional records** following Microsoft's recommended patterns.
+All models in the solution are now **immutable positional records** following Microsoft's recommended patterns.
+
+**Core.Models:** 6 records
+**Api.Models:** 1 record
+**Total:** 7 records
 
 ---
 
@@ -251,6 +255,57 @@ var (rootCause, _, _, errorType, _, _, _, analyzedAt) = result;
 
 ---
 
+---
+
+### 5. **AnalysisRequest.cs** (Api.Models)
+
+**Purpose:** API request model for pipeline analysis endpoint
+
+```csharp
+namespace AgenticPipeline.Api.Models;
+
+/// <summary>
+/// Request model for pipeline failure analysis
+/// </summary>
+/// <param name="LogContent">The CI/CD pipeline failure log content to analyze (optional if LogFilePath is provided)</param>
+/// <param name="LogFilePath">Path to the log file to analyze (optional if LogContent is provided)</param>
+public record AnalysisRequest(
+    string? LogContent = null,
+    string? LogFilePath = null);
+```
+
+**Usage:**
+```csharp
+// Option 1: Pass log content directly
+var request1 = new AnalysisRequest(LogContent: "log content here");
+
+// Option 2: Pass file path (API reads the file)
+var request2 = new AnalysisRequest(LogFilePath: "C:\\path\\to\\log.txt");
+
+// Option 3: Pass both (file path takes priority in controller)
+var request3 = new AnalysisRequest(
+    LogContent: "fallback content",
+    LogFilePath: "C:\\path\\to\\file.log");
+
+// Option 4: Empty (will fail validation)
+var request4 = new AnalysisRequest(); // Both null
+```
+
+**JSON Examples:**
+```json
+// With file path
+{
+  "logFilePath": "<PROJECT_ROOT>\\SampleData\\build-failure-compilation.log"
+}
+
+// With content
+{
+  "logContent": "[2026-04-01] BUILD FAILED..."
+}
+```
+
+---
+
 ## Model Hierarchy
 
 ```
@@ -261,6 +316,9 @@ AgenticPipeline.Core.Models/
 ├── RcaJsonResponse         → Intermediate deserialization
 ├── RcaResult               → Final analysis result
 └── TokenUsage              → Nested in RcaResult (with computed TotalTokens)
+
+AgenticPipeline.Api.Models/
+└── AnalysisRequest         → API endpoint request (with optional parameters)
 ```
 
 ---
@@ -304,8 +362,10 @@ var updated = result with { ConfidenceScore = 0.99 };
 
 | Metric | Value |
 |--------|-------|
-| **Total Models** | 6 records |
-| **Lines of Code Saved** | ~60% reduction |
+| **Total Models** | 7 records |
+| **Core.Models** | 6 records |
+| **Api.Models** | 1 record |
+| **Lines of Code Saved** | ~60-75% reduction |
 | **Immutability** | 100% (all init-only) |
 | **Value Equality** | Built-in for all |
 | **Deconstruction** | Supported on all |
@@ -319,15 +379,17 @@ var updated = result with { ConfidenceScore = 0.99 };
 1. Configuration Binding
    └─> ClaudeSettings (from appsettings.json)
 
-2. API Request
-   └─> AnalysisRequest (from HTTP body)
-       └─> ClaudeRequest (to Bedrock)
-           └─> ClaudeResponse (from Bedrock)
-               └─> RcaJsonResponse (deserialize JSON)
-                   └─> RcaResult (final result)
-                       └─> TokenUsage (embedded)
+2. HTTP Request
+   └─> AnalysisRequest (from HTTP body - NEW RECORD!)
+       ├─> Option A: LogContent provided → use directly
+       └─> Option B: LogFilePath provided → read file
+           └─> ClaudeRequest (to Bedrock)
+               └─> ClaudeResponse (from Bedrock)
+                   └─> RcaJsonResponse (deserialize JSON)
+                       └─> RcaResult (final result)
+                           └─> TokenUsage (embedded)
 
-3. API Response
+3. HTTP Response
    └─> RcaResult (serialized to JSON)
 ```
 

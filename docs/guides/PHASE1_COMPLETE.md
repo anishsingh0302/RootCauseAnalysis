@@ -49,13 +49,13 @@ AgenticPipeline.sln
 
 ### Step 1: Refresh AWS Credentials
 ```powershell
-cd C:\Anish\Source\Agentic_Pipeline
-.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "anishuser1" -Region "us-west-2"
+cd C:\XXXX\Source\Agentic_Pipeline
+.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "XXXX" -Region "us-west-2"
 ```
 
 ### Step 2: Start the API
 ```powershell
-cd C:\Anish\Source\Agentic_Pipeline\src\AgenticPipeline.Api
+cd C:\XXXXX\Source\Agentic_Pipeline\src\AgenticPipeline.Api
 dotnet run
 ```
 
@@ -75,9 +75,9 @@ Swagger UI loads automatically at the root!
 1. Expand **POST /api/pipeline/analyze**
 2. Click **"Try it out"**
 3. Copy content from one of these files:
-   - `C:\Anish\Source\Agentic_Pipeline\SampleData\build-failure-compilation.log`
-   - `C:\Anish\Source\Agentic_Pipeline\SampleData\build-failure-test.log`
-   - `C:\Anish\Source\Agentic_Pipeline\SampleData\build-failure-dependency.log`
+   - `C:\XXXXX\Source\Agentic_Pipeline\SampleData\build-failure-compilation.log`
+   - `C:\XXXXX\Source\Agentic_Pipeline\SampleData\build-failure-test.log`
+   - `C:\XXXXX\Source\Agentic_Pipeline\SampleData\build-failure-dependency.log`
 4. Paste into the `logContent` field
 5. Click **"Execute"**
 6. Watch Claude analyze the failure!

@@ -79,7 +79,7 @@ The application uses AWS SSO credentials from environment variables:
 
 **To refresh credentials:**
 ```powershell
-.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "anishuser1" -Region "us-west-2"
+.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "XXXXXXXXX" -Region "us-west-2"
 ```
 
 See [Scripts Documentation](scripts/README.md) for all available scripts.
@@ -284,7 +284,7 @@ All documentation is organized in the `docs/` folder:
 ### "Unable to get IAM security credentials"
 Run the SSO credential script:
 ```powershell
-.\tests\BedrockConnectionTest\set-sso-creds-persistent.ps1 -ProfileName "anishuser1" -Region "us-west-2"
+.\tests\BedrockConnectionTest\set-sso-creds-persistent.ps1 -ProfileName "XXXXXXXXX" -Region "us-west-2"
 ```
 
 ### "Model not available" error
@@ -294,7 +294,7 @@ Check that you're using inference profile ID:
 
 ### Build errors
 ```bash
-cd C:\Anish\Source\Agentic_Pipeline
+cd C:\XXXXX\Source\Agentic_Pipeline
 dotnet clean
 dotnet restore
 dotnet build

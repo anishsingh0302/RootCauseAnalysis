@@ -444,7 +444,7 @@ Write-Host "dotnet run" -ForegroundColor White
 
 **Run it:**
 ```powershell
-cd C:\Anish\Source\Agentic_Pipeline
+cd C:\XXXXX\Source\Agentic_Pipeline
 .\test-aws-setup.ps1
 ```
 

@@ -35,21 +35,12 @@ public class PipelineController : ControllerBase
     {
         try
         {
-            _logger.LogInformation("Received pipeline analysis request. Log length: {LogLength} characters",
-                request.LogContent?.Length ?? 0);
-
-            if (string.IsNullOrWhiteSpace(request.LogContent))
-            {
-                return BadRequest(new ProblemDetails
-                {
-                    Title = "Invalid Request",
-                    Detail = "Log content cannot be empty",
-                    Status = StatusCodes.Status400BadRequest
-                });
-            }
+            var (logContent, errorResult) = await ResolveLogContentAsync(request, cancellationToken);
+            if (errorResult != null)
+                return errorResult;
 
             // Call RCA plugin
-            var resultJson = await _rcaPlugin.AnalyzeFailureAsync(request.LogContent, cancellationToken);
+            var resultJson = await _rcaPlugin.AnalyzeFailureAsync(logContent: logContent!, cancellationToken);
 
             // Parse the JSON result
             var result = JsonSerializer.Deserialize<RcaResult>(resultJson);
@@ -88,6 +79,82 @@ public class PipelineController : ControllerBase
                 Detail = $"An error occurred while analyzing the pipeline: {ex.Message}",
                 Status = StatusCodes.Status500InternalServerError
             });
+        }
+    }
+
+    private async Task<(string? LogContent, IActionResult? Error)> ResolveLogContentAsync(
+        AnalysisRequest request, CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(request.LogFilePath))
+        {
+            return await ReadLogFromFileAsync(request.LogFilePath, cancellationToken);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.LogContent))
+        {
+            _logger.LogInformation("Received pipeline analysis request with direct content. Log length: {LogLength} characters", request.LogContent.Length);
+            return (request.LogContent, null);
+        }
+
+        return (null, BadRequest(new ProblemDetails
+        {
+            Title = "Invalid Request",
+            Detail = "Either 'logContent' or 'logFilePath' must be provided",
+            Status = StatusCodes.Status400BadRequest
+        }));
+    }
+
+    private async Task<(string? LogContent, IActionResult? Error)> ReadLogFromFileAsync(
+        string filePath, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Received pipeline analysis request with file path: {FilePath}", filePath);
+
+        if (!System.IO.File.Exists(filePath))
+        {
+            return (null, BadRequest(new ProblemDetails
+            {
+                Title = "File Not Found",
+                Detail = $"The log file '{filePath}' does not exist or cannot be accessed",
+                Status = StatusCodes.Status400BadRequest
+            }));
+        }
+
+        try
+        {
+            var content = await System.IO.File.ReadAllTextAsync(filePath, cancellationToken);
+            _logger.LogInformation("Successfully read log file. Length: {LogLength} characters", content.Length);
+
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                return (null, BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid Request",
+                    Detail = "Log content is empty",
+                    Status = StatusCodes.Status400BadRequest
+                }));
+            }
+
+            return (content, null);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Access denied to file: {FilePath}", filePath);
+            return (null, StatusCode(StatusCodes.Status403Forbidden, new ProblemDetails
+            {
+                Title = "Access Denied",
+                Detail = $"Access denied to read the file '{filePath}'",
+                Status = StatusCodes.Status403Forbidden
+            }));
+        }
+        catch (IOException ex)
+        {
+            _logger.LogError(ex, "IO error reading file: {FilePath}", filePath);
+            return (null, StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+            {
+                Title = "File Read Error",
+                Detail = $"Error reading the file: {ex.Message}",
+                Status = StatusCodes.Status500InternalServerError
+            }));
         }
     }
 
