@@ -16,9 +16,15 @@ builder.Services.AddSwaggerGen();
 builder.Services.Configure<ClaudeSettings>(
     builder.Configuration.GetSection(ClaudeSettings.SectionName));
 
+// Configure GitHub settings from appsettings.json
+builder.Services.Configure<GitHubSettings>(
+    builder.Configuration.GetSection("GitHub"));
+
 // Register services
 builder.Services.AddSingleton<IClaudeService, ClaudeService>();
+builder.Services.AddSingleton<ICommitAnalyzer, GitHubService>();
 builder.Services.AddSingleton<RcaPlugin>();
+builder.Services.AddSingleton<CommitAnalyzerPlugin>();
 
 // Add CORS (if needed for frontend)
 builder.Services.AddCors(options =>
