@@ -36,7 +36,8 @@ public class ApiIntegrationTests : IntegrationTestBase, IDisposable
         _context.Database.EnsureCreated();
 
         var repoLogger = LoggerFactory.CreateLogger<FailureRepository>();
-        _repository = new FailureRepository(_context, repoLogger);
+        var mockEmbeddingService = new MockEmbeddingService();
+        _repository = new FailureRepository(_context, repoLogger, mockEmbeddingService);
 
         // Setup RCA plugin
         var factory = new TestServiceFactory(LoggerFactory);

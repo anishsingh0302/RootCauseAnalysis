@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AgenticPipeline.Tests.Common\AgenticPipeline.Tests.Common.csproj" />
+    <ProjectReference Include="..\..\src\AgenticPipeline.Api\AgenticPipeline.Api.csproj" />
     <ProjectReference Include="..\..\src\AgenticPipeline.Core\AgenticPipeline.Core.csproj" />
     <ProjectReference Include="..\..\src\AgenticPipeline.Infrastructure\AgenticPipeline.Infrastructure.csproj" />
   </ItemGroup>

@@ -31,7 +31,8 @@ public class HistoryEndpointTests : IntegrationTestBase, IDisposable
         _context.Database.EnsureCreated();
 
         var repoLogger = LoggerFactory.CreateLogger<FailureRepository>();
-        _repository = new FailureRepository(_context, repoLogger);
+        var mockEmbeddingService = new MockEmbeddingService();
+        _repository = new FailureRepository(_context, repoLogger, mockEmbeddingService);
     }
 
     [Fact]

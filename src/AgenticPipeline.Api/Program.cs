@@ -22,6 +22,10 @@ builder.Services.Configure<ClaudeSettings>(
 builder.Services.Configure<GitHubSettings>(
     builder.Configuration.GetSection("GitHub"));
 
+// Configure Embedding settings from appsettings.json
+builder.Services.Configure<EmbeddingSettings>(
+    builder.Configuration.GetSection(EmbeddingSettings.SectionName));
+
 // Configure Database (SQLite with EF Core)
 builder.Services.AddDbContext<AgenticPipelineDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -32,6 +36,9 @@ builder.Services.AddScoped<IFailureRepository, AgenticPipeline.Infrastructure.Re
 // Register services
 builder.Services.AddSingleton<IClaudeService, ClaudeService>();
 builder.Services.AddSingleton<ICommitAnalyzer, GitHubService>();
+builder.Services.AddSingleton<IEmbeddingService, TitanEmbeddingService>();
+builder.Services.AddSingleton<ISimilarityService, CosineSimilarityService>();
+builder.Services.AddSingleton<IPatternRecognitionService, KMeansPatternRecognitionService>();
 builder.Services.AddSingleton<RcaPlugin>();
 builder.Services.AddSingleton<CommitAnalyzerPlugin>();
 

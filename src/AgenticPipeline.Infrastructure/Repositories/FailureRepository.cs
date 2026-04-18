@@ -13,16 +13,24 @@ public class FailureRepository : IFailureRepository
 {
     private readonly AgenticPipelineDbContext _context;
     private readonly ILogger<FailureRepository> _logger;
+    private readonly IEmbeddingService _embeddingService;
 
-    public FailureRepository(AgenticPipelineDbContext context, ILogger<FailureRepository> logger)
+    public FailureRepository(
+        AgenticPipelineDbContext context,
+        ILogger<FailureRepository> logger,
+        IEmbeddingService embeddingService)
     {
         _context = context;
         _logger = logger;
+        _embeddingService = embeddingService;
     }
 
     public async Task<FailureEntity> SaveFailureAsync(FailureEntity failure, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Saving failure analysis to database. Error type: {ErrorType}", failure.ErrorType);
+
+        // Generate embedding if not already set
+        await GenerateEmbeddingIfNeededAsync(failure, cancellationToken);
 
         _context.Failures.Add(failure);
         await _context.SaveChangesAsync(cancellationToken);
@@ -39,6 +47,9 @@ public class FailureRepository : IFailureRepository
         _logger.LogInformation(
             "Saving failure analysis with {CommitCount} related commits. Error type: {ErrorType}",
             commits.Count, failure.ErrorType);
+
+        // Generate embedding if not already set
+        await GenerateEmbeddingIfNeededAsync(failure, cancellationToken);
 
         // Add failure
         _context.Failures.Add(failure);
@@ -173,5 +184,66 @@ public class FailureRepository : IFailureRepository
 
         _logger.LogInformation("Statistics calculated: {TotalFailures} total failures", totalFailures);
         return statistics;
+    }
+
+    /// <summary>
+    /// Generates embedding for failure if not already set
+    /// </summary>
+    private async Task GenerateEmbeddingIfNeededAsync(FailureEntity failure, CancellationToken cancellationToken)
+    {
+        // Skip if embedding already exists
+        if (failure.Embedding != null && failure.Embedding.Length > 0)
+        {
+            _logger.LogDebug("Embedding already exists for failure, skipping generation");
+            return;
+        }
+
+        try
+        {
+            _logger.LogInformation("Generating embedding for failure. Error type: {ErrorType}", failure.ErrorType);
+
+            // Create text representation for embedding
+            // Combine error type, root cause, and original log content for semantic richness
+            var textForEmbedding = $"{failure.ErrorType}: {failure.RootCause}\n\n{failure.LogContent}";
+
+            // Generate embedding
+            var embeddingVector = await _embeddingService.GenerateEmbeddingAsync(textForEmbedding, cancellationToken);
+
+            // Convert float[] to byte[] for storage
+            failure.Embedding = ConvertFloatArrayToBytes(embeddingVector);
+            failure.EmbeddingDimension = embeddingVector.Length;
+
+            _logger.LogInformation(
+                "Embedding generated successfully. Dimensions: {Dimensions}, Storage size: {Bytes} bytes",
+                embeddingVector.Length, failure.Embedding.Length);
+        }
+        catch (Exception ex)
+        {
+            // Log error but don't fail the save operation
+            // Embedding is optional - the failure analysis can still be saved without it
+            _logger.LogError(ex,
+                "Failed to generate embedding for failure. Error type: {ErrorType}. Continuing without embedding.",
+                failure.ErrorType);
+        }
+    }
+
+    /// <summary>
+    /// Converts float array to byte array for database storage
+    /// </summary>
+    public static byte[] ConvertFloatArrayToBytes(float[] floats)
+    {
+        var bytes = new byte[floats.Length * sizeof(float)];
+        Buffer.BlockCopy(floats, 0, bytes, 0, bytes.Length);
+        return bytes;
+    }
+
+    /// <summary>
+    /// Converts byte array back to float array for retrieval
+    /// </summary>
+    public static float[] ConvertBytesToFloatArray(byte[] bytes)
+    {
+        var floats = new float[bytes.Length / sizeof(float)];
+        Buffer.BlockCopy(bytes, 0, floats, 0, bytes.Length);
+        return floats;
     }
 }

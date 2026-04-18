@@ -15,17 +15,26 @@ public class PipelineController : ControllerBase
     private readonly RcaPlugin _rcaPlugin;
     private readonly CommitAnalyzerPlugin _commitAnalyzerPlugin;
     private readonly IFailureRepository _failureRepository;
+    private readonly ISimilarityService _similarityService;
+    private readonly IEmbeddingService _embeddingService;
+    private readonly IPatternRecognitionService _patternRecognitionService;
     private readonly ILogger<PipelineController> _logger;
 
     public PipelineController(
         RcaPlugin rcaPlugin,
         CommitAnalyzerPlugin commitAnalyzerPlugin,
         IFailureRepository failureRepository,
+        ISimilarityService similarityService,
+        IEmbeddingService embeddingService,
+        IPatternRecognitionService patternRecognitionService,
         ILogger<PipelineController> logger)
     {
         _rcaPlugin = rcaPlugin;
         _commitAnalyzerPlugin = commitAnalyzerPlugin;
         _failureRepository = failureRepository;
+        _similarityService = similarityService;
+        _embeddingService = embeddingService;
+        _patternRecognitionService = patternRecognitionService;
         _logger = logger;
     }
 
@@ -438,6 +447,304 @@ public class PipelineController : ControllerBase
             {
                 Title = "Statistics Error",
                 Detail = $"An error occurred while calculating statistics: {ex.Message}",
+                Status = StatusCodes.Status500InternalServerError
+            });
+        }
+    }
+
+    /// <summary>
+    /// Searches for similar past failures using vector similarity
+    /// </summary>
+    /// <param name="request">Search request with query parameters</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Ranked list of similar failures</returns>
+    [HttpPost("search/similar")]
+    [ProducesResponseType(typeof(SimilaritySearchResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> SearchSimilarFailures(
+        [FromBody] SimilaritySearchRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var startTime = DateTime.UtcNow;
+
+        try
+        {
+            _logger.LogInformation(
+                "Similarity search requested. FailureId: {FailureId}, TopN: {TopN}, MinSimilarity: {MinSimilarity}",
+                request.FailureId, request.TopN, request.MinSimilarity);
+
+            // Validate request
+            if (request.FailureId == null && string.IsNullOrWhiteSpace(request.FailureText))
+            {
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid Request",
+                    Detail = "Either FailureId or FailureText must be provided",
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+
+            if (request.TopN <= 0 || request.TopN > 100)
+            {
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid TopN",
+                    Detail = "TopN must be between 1 and 100",
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+
+            if (request.MinSimilarity < 0.0f || request.MinSimilarity > 1.0f)
+            {
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid MinSimilarity",
+                    Detail = "MinSimilarity must be between 0.0 and 1.0",
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+
+            // Get candidates from database
+            var candidateLimit = 1000; // Limit candidates for performance
+            var candidates = await _failureRepository.GetHistoryAsync(
+                limit: candidateLimit,
+                offset: 0,
+                errorType: request.ErrorType,
+                cancellationToken);
+
+            // Apply lookback filter if specified
+            if (request.LookbackDays.HasValue)
+            {
+                var cutoffDate = DateTime.UtcNow.AddDays(-request.LookbackDays.Value);
+                candidates = candidates.Where(f => f.AnalyzedAt >= cutoffDate).ToList();
+            }
+
+            _logger.LogInformation("Retrieved {Count} candidate failures", candidates.Count);
+
+            // Perform similarity search
+            List<Core.Interfaces.SimilarityResult> results;
+            QueryInfo queryInfo;
+
+            if (request.FailureId.HasValue)
+            {
+                // Search by existing failure
+                var queryFailure = await _failureRepository.GetByIdAsync(
+                    request.FailureId.Value,
+                    includeCommits: false,
+                    cancellationToken);
+
+                if (queryFailure == null)
+                {
+                    return NotFound(new ProblemDetails
+                    {
+                        Title = "Failure Not Found",
+                        Detail = $"Failure with ID {request.FailureId.Value} not found",
+                        Status = StatusCodes.Status404NotFound
+                    });
+                }
+
+                if (queryFailure.Embedding == null || queryFailure.Embedding.Length == 0)
+                {
+                    return BadRequest(new ProblemDetails
+                    {
+                        Title = "No Embedding",
+                        Detail = $"Failure {request.FailureId.Value} does not have an embedding",
+                        Status = StatusCodes.Status400BadRequest
+                    });
+                }
+
+                results = _similarityService.FindSimilarFailures(
+                    queryFailure,
+                    candidates,
+                    request.TopN,
+                    request.MinSimilarity);
+
+                queryInfo = new QueryInfo
+                {
+                    QueryType = "failure_id",
+                    FailureId = queryFailure.Id,
+                    ErrorType = queryFailure.ErrorType,
+                    MinSimilarity = request.MinSimilarity,
+                    TopN = request.TopN
+                };
+            }
+            else
+            {
+                // Search by failure text - generate embedding on-the-fly
+                var embedding = await _embeddingService.GenerateEmbeddingAsync(
+                    request.FailureText!,
+                    cancellationToken);
+
+                results = _similarityService.FindSimilarFailures(
+                    embedding,
+                    candidates,
+                    request.TopN,
+                    request.MinSimilarity);
+
+                queryInfo = new QueryInfo
+                {
+                    QueryType = "failure_text",
+                    FailureId = null,
+                    ErrorType = request.ErrorType,
+                    MinSimilarity = request.MinSimilarity,
+                    TopN = request.TopN
+                };
+            }
+
+            var executionTime = (DateTime.UtcNow - startTime).TotalMilliseconds;
+
+            var response = new SimilaritySearchResponse
+            {
+                Query = queryInfo,
+                Results = results.Select(r => new SimilarFailureResult
+                {
+                    Id = r.Failure.Id,
+                    ErrorType = r.Failure.ErrorType,
+                    RootCause = r.Failure.RootCause,
+                    DetailedAnalysis = r.Failure.DetailedAnalysis,
+                    AnalyzedAt = r.Failure.AnalyzedAt,
+                    SimilarityScore = r.SimilarityScore,
+                    ConfidenceScore = r.Failure.ConfidenceScore,
+                    CommitCount = r.Failure.Commits?.Count ?? 0,
+                    Repository = r.Failure.Repository
+                }).ToList(),
+                TotalCandidates = candidates.Count,
+                ExecutionTimeMs = (long)executionTime
+            };
+
+            _logger.LogInformation(
+                "Similarity search completed. Found {ResultCount} results in {ExecutionTimeMs}ms",
+                response.ResultCount, response.ExecutionTimeMs);
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error performing similarity search");
+            return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+            {
+                Title = "Similarity Search Error",
+                Detail = $"An error occurred during similarity search: {ex.Message}",
+                Status = StatusCodes.Status500InternalServerError
+            });
+        }
+    }
+
+    /// <summary>
+    /// Detects patterns in failure history using K-means clustering
+    /// </summary>
+    /// <param name="request">Pattern detection parameters</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Detected patterns with cluster information</returns>
+    [HttpPost("patterns/detect")]
+    [ProducesResponseType(typeof(PatternDetectionResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> DetectPatterns(
+        [FromBody] PatternDetectionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation(
+                "Pattern detection requested. ClusterCount: {ClusterCount}, LookbackDays: {LookbackDays}",
+                request.ClusterCount, request.LookbackDays);
+
+            // Validate request
+            if (request.LookbackDays <= 0 || request.LookbackDays > 365)
+            {
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid LookbackDays",
+                    Detail = "LookbackDays must be between 1 and 365",
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+
+            if (request.ClusterCount.HasValue && (request.ClusterCount <= 0 || request.ClusterCount > 50))
+            {
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid ClusterCount",
+                    Detail = "ClusterCount must be between 1 and 50",
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+
+            // Get recent failures
+            var cutoffDate = DateTime.UtcNow.AddDays(-request.LookbackDays);
+            var allFailures = await _failureRepository.GetHistoryAsync(
+                limit: 10000, // Large limit to get all recent failures
+                offset: 0,
+                errorType: request.ErrorType,
+                cancellationToken);
+
+            var recentFailures = allFailures
+                .Where(f => f.AnalyzedAt >= cutoffDate)
+                .Where(f => f.Embedding != null && f.Embedding.Length > 0)
+                .ToList();
+
+            _logger.LogInformation(
+                "Found {Count} failures with embeddings in last {Days} days",
+                recentFailures.Count, request.LookbackDays);
+
+            if (recentFailures.Count < 2)
+            {
+                return Ok(new PatternDetectionResult
+                {
+                    Patterns = new List<FailurePattern>(),
+                    TotalFailures = recentFailures.Count,
+                    ExecutionTimeMs = 0,
+                    Parameters = new ClusteringParameters
+                    {
+                        ClusterCount = 0,
+                        MaxIterations = request.MaxIterations,
+                        MinClusterSize = request.MinClusterSize
+                    }
+                });
+            }
+
+            // Determine optimal cluster count if not specified
+            int clusterCount;
+            if (request.ClusterCount.HasValue)
+            {
+                clusterCount = request.ClusterCount.Value;
+                _logger.LogInformation("Using specified cluster count: {K}", clusterCount);
+            }
+            else
+            {
+                _logger.LogInformation("Auto-detecting optimal cluster count...");
+                clusterCount = _patternRecognitionService.DetermineOptimalClusterCount(
+                    recentFailures,
+                    maxClusters: Math.Min(10, recentFailures.Count / 3));
+                _logger.LogInformation("Optimal cluster count determined: {K}", clusterCount);
+            }
+
+            // Run pattern detection
+            var parameters = new ClusteringParameters
+            {
+                ClusterCount = clusterCount,
+                MaxIterations = request.MaxIterations,
+                MinClusterSize = request.MinClusterSize,
+                RandomSeed = request.RandomSeed
+            };
+
+            var result = _patternRecognitionService.DetectPatterns(recentFailures, parameters);
+
+            _logger.LogInformation(
+                "Pattern detection completed. Found {PatternCount} patterns from {TotalFailures} failures in {ExecutionMs}ms",
+                result.Patterns.Count, result.TotalFailures, result.ExecutionTimeMs);
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error detecting patterns");
+            return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+            {
+                Title = "Pattern Detection Error",
+                Detail = $"An error occurred during pattern detection: {ex.Message}",
                 Status = StatusCodes.Status500InternalServerError
             });
         }

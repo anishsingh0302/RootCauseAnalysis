@@ -32,7 +32,8 @@ public class EdgeCaseTests : IntegrationTestBase, IDisposable
         _context.Database.EnsureCreated();
 
         var repoLogger = LoggerFactory.CreateLogger<FailureRepository>();
-        _repository = new FailureRepository(_context, repoLogger);
+        var mockEmbeddingService = new MockEmbeddingService();
+        _repository = new FailureRepository(_context, repoLogger, mockEmbeddingService);
     }
 
     [Fact]
@@ -351,8 +352,12 @@ public class EdgeCaseTests : IntegrationTestBase, IDisposable
         Assert.Null(retrieved.SuspectedCommitsJson);
         Assert.Null(retrieved.Repository);
         Assert.Null(retrieved.CommitsAnalyzed);
-        Assert.Null(retrieved.Embedding);
+
+        // Embedding is now auto-generated (Phase 3 feature)
+        Assert.NotNull(retrieved.Embedding);
+        Assert.Equal(512, retrieved.EmbeddingDimension);
         Output.WriteLine("Minimal entity with null optional fields saved correctly");
+        Output.WriteLine($"Embedding auto-generated: {retrieved.Embedding.Length} bytes");
     }
 
     [Fact]
