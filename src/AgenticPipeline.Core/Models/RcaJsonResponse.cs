@@ -10,10 +10,12 @@ namespace AgenticPipeline.Core.Models;
 /// <param name="ErrorType">Type of error (e.g., CompilationError, TestFailure, DependencyIssue)</param>
 /// <param name="ConfidenceScore">Confidence score (0.0 to 1.0)</param>
 /// <param name="Recommendations">List of recommended fix steps</param>
+/// <param name="SuspectedCommits">List of suspected commits (optional, only present with commit analysis)</param>
 public record RcaJsonResponse(
     string RootCause,
     string DetailedAnalysis,
     List<string>? AffectedComponents,
     string ErrorType,
     double ConfidenceScore,
-    List<string>? Recommendations);
+    List<string>? Recommendations,
+    List<SuspectedCommit>? SuspectedCommits = null);

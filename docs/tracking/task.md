@@ -1,8 +1,8 @@
 # Task List - Agentic Pipeline Troubleshooter
 
-**Last Updated:** 2026-04-01
-**Current Status:** ✅ Phase 1 Complete, Tested & Pushed to Git
-**Current Phase:** Ready for Phase 2 - Commit Analysis
+**Last Updated:** 2026-04-08
+**Current Status:** ✅ Phase 1 Complete | ✅ Phase 2 Days 8-10 Complete
+**Current Phase:** Phase 2 - Day 11 (Repository Pattern)
 
 ---
 
@@ -276,27 +276,149 @@
 
 ---
 
-## 🚀 Phase 2 Tasks (Ready to Start)
+## ✅ Phase 2 Completed Tasks
 
-### Phase 2: Commit Analysis
+### Phase 2 - Day 8: GitHub Integration ✅
+**Status:** ✅ Complete (2026-04-08)
 
 #### A. GitHub Integration
-- [ ] Install Octokit.NET NuGet package
-- [ ] Create `ICommitAnalyzer` interface in Core
-- [ ] Implement GitHub authentication (Personal Access Token)
-- [ ] Add GitHub configuration to appsettings.json
-- [ ] Test GitHub API connection
+- [x] Installed Octokit.NET NuGet package (v14.0.0)
+- [x] Created `ICommitAnalyzer` interface in Core
+- [x] Implemented `GitHubService` with full GitHub API integration
+- [x] Added GitHub configuration to appsettings.json
+- [x] Created `GitHubSettings` record for configuration
+- [x] Tested GitHub API connection ✅
 
 #### B. Commit Analyzer Plugin
-- [ ] Create `CommitAnalyzerPlugin.cs` in Infrastructure
-- [ ] Implement `[KernelFunction] AnalyzeCommit()` method
-- [ ] Parse commit data (files changed, diff, message)
-- [ ] Extract code changes relevant to failure
-- [ ] Correlate timestamps (failure vs commit time)
+- [x] Created `CommitAnalyzerPlugin.cs` in Infrastructure
+- [x] Implemented 2 Kernel Functions:
+  - `AnalyzeCommitContext()` - Fetches and summarizes commits
+  - `CorrelateCommitsWithFailure()` - AI-powered correlation
+- [x] Parse commit data (files changed, diff, message)
+- [x] Extract code changes relevant to failure
+- [x] Correlate timestamps (failure vs commit time)
+- [x] All integration tests passing ✅
 
-#### C. Enhanced RCA with Commit Context
-- [ ] Update `RcaPlugin` to accept commit context
-- [ ] Modify system prompt to include commit analysis
+#### C. Test Infrastructure
+- [x] Created `AgenticPipeline.Tests.Common` project
+- [x] Created `AgenticPipeline.IntegrationTests` project (17 tests)
+- [x] All tests aligned to use configured repository
+- [x] Fixed: Consistent `commitsAnalyzed` property in responses
+
+---
+
+### Phase 2 - Day 9: Enhanced RCA with Commit Context ✅
+**Status:** ✅ Complete (2026-04-08)
+
+#### A. Enhanced RcaResult Model
+- [x] Added `SuspectedCommits` property (nullable list)
+- [x] Added `CommitCorrelation` property (nullable metadata)
+- [x] Created `SuspectedCommit` record (9 properties)
+- [x] Created `CommitCorrelationMetadata` record (5 properties)
+
+#### B. Enhanced RcaPlugin
+- [x] Added `AnalyzeFailureWithCommitsAsync()` method
+- [x] Refactored `AnalyzeFailureAsync()` to call enhanced version
+- [x] Updated system prompt to request `suspectedCommits` in JSON
+- [x] Enhanced user message to include commit analysis context
+- [x] Added logic to parse and map commit correlation metadata
+
+#### C. Updated Models
+- [x] Updated `RcaJsonResponse` to include `SuspectedCommits`
+- [x] Created `AnalysisWithCommitsRequest` model
+
+#### D. New API Endpoint
+- [x] Created `/analyze-with-commits` endpoint
+- [x] Injected `CommitAnalyzerPlugin` into controller
+- [x] Implemented complete analysis flow:
+  - Resolve log content
+  - Validate GitHub parameters
+  - Correlate commits with failure
+  - Perform enhanced RCA with commit context
+- [x] Comprehensive error handling (400/500 responses)
+- [x] Build: 0 errors, 0 warnings ✅
+
+### Phase 2 - Day 10: Database Setup ✅
+**Status:** ✅ Complete (2026-04-08)
+
+#### A. Database Context & Entities
+- [x] EF Core SQLite packages already installed (v9.0.0)
+- [x] Created `Infrastructure/Data/AgenticPipelineDbContext.cs`
+- [x] Defined `FailureEntity` model (18 properties)
+- [x] Defined `CommitEntity` model (17 properties)
+- [x] Configured relationships (one-to-many) and cascade delete
+- [x] Configured indexes for performance:
+  - FailureEntity: ErrorType, AnalyzedAt, ConfidenceScore, Repository
+  - CommitEntity: Sha (unique), CommitDate, FailureEntityId, Author
+- [x] Configured max lengths for all string properties
+
+#### B. Database Configuration
+- [x] Added connection string to appsettings.json
+- [x] Registered DbContext in Program.cs with SQLite
+- [x] Implemented database auto-initialization (EnsureCreated on startup)
+- [x] Added comprehensive logging for initialization
+
+#### C. Integration Tests (9 tests, all passing)
+- [x] SaveFailureEntity_WithValidData_SavesSuccessfully
+- [x] SaveCommitEntity_WithValidData_SavesSuccessfully
+- [x] SaveFailureWithCommits_WithRelationship_SavesSuccessfully
+- [x] QueryFailures_WithIncludeCommits_ReturnsRelatedData
+- [x] QueryFailuresByErrorType_ReturnsMatchingRecords
+- [x] QueryCommitBySha_WithUniqueConstraint_ReturnsExactMatch
+- [x] DeleteFailure_WithCascadeDelete_RemovesRelatedCommits
+- [x] CalculateStatistics_WithMultipleRecords_ReturnsCorrectAggregates
+- [x] QueryFailuresByDateRange_ReturnsRecordsInRange
+- [x] All tests follow AAA pattern (NO if/else statements)
+
+#### D. Security
+- [x] Added `*.db`, `*.db-shm`, `*.db-wal` to .gitignore
+
+---
+
+## 🚀 Phase 2 Remaining Tasks
+
+### Phase 2 - Day 11: API Integration & Repository Pattern (Future)
+**Status:** 🔜 Not Started
+
+#### A. Repository Pattern
+- [ ] Create `IFailureRepository` interface
+- [ ] Implement `FailureRepository` class
+- [ ] Methods: SaveFailureAsync, GetHistoryAsync, GetByIdAsync
+- [ ] Register in DI container
+
+#### B. Update Controllers
+- [ ] Update `/analyze` endpoint to save results
+- [ ] Update `/analyze-with-commits` endpoint to save results
+- [ ] Test database persistence
+
+### Phase 2 - Day 12: Database Integration & History Endpoints (Future)
+**Status:** 🔜 Not Started
+
+#### A. History Endpoints
+- [ ] Create `GET /api/pipeline/history` endpoint
+- [ ] Create `GET /api/pipeline/history/{id}` endpoint
+- [ ] Create `GET /api/pipeline/stats` endpoint
+- [ ] Test all new endpoints
+
+#### B. Data Persistence
+- [ ] Verify data persists across app restarts
+- [ ] Add `.gitignore` entry for `*.db` files
+- [ ] Performance testing with 50+ entries
+
+### Phase 2 - Days 13-14: Testing & Documentation (Future)
+**Status:** 🔜 Not Started
+
+#### A. Comprehensive Testing
+- [ ] End-to-end testing with real GitHub repo
+- [ ] Test with 20+ database entries
+- [ ] Performance testing
+- [ ] Fix any bugs found
+
+#### B. Documentation
+- [ ] Update README.md with Phase 2 features
+- [ ] Update tracking documents
+- [ ] Create Phase 2 testing guide
+- [ ] Demo screenshots/video
 - [ ] Update `RcaResult` model with commit information
 - [ ] Add API endpoint: `POST /api/pipeline/analyze-with-commits`
 

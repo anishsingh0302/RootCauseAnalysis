@@ -24,9 +24,37 @@ public class RcaPlugin
         [Description("The pipeline failure log content")] string logContent,
         CancellationToken cancellationToken = default)
     {
+        return await AnalyzeFailureWithCommitsAsync(logContent, null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Analyzes a pipeline failure with optional commit context for enhanced analysis
+    /// </summary>
+    [KernelFunction("analyze_failure_with_commits")]
+    [Description("Analyzes a CI/CD pipeline failure log with commit context for enhanced root cause analysis")]
+    public async Task<string> AnalyzeFailureWithCommitsAsync(
+        [Description("The pipeline failure log content")] string logContent,
+        [Description("Optional commit correlation JSON from CommitAnalyzerPlugin")] string? commitCorrelationJson = null,
+        CancellationToken cancellationToken = default)
+    {
         if (string.IsNullOrWhiteSpace(logContent))
         {
             throw new ArgumentException("Log content cannot be empty", nameof(logContent));
+        }
+
+        // Parse commit context if provided
+        JsonElement? commitContext = null;
+        if (!string.IsNullOrWhiteSpace(commitCorrelationJson))
+        {
+            try
+            {
+                commitContext = JsonSerializer.Deserialize<JsonElement>(commitCorrelationJson);
+            }
+            catch (JsonException)
+            {
+                // If commit JSON is invalid, proceed without it
+                commitContext = null;
+            }
         }
 
         // Build the RCA prompt
@@ -40,17 +68,48 @@ Analyze the provided log and respond with a JSON object following this exact str
   ""affectedComponents"": [""list"", ""of"", ""affected"", ""files"", ""or"", ""components""],
   ""errorType"": ""One of: CompilationError, TestFailure, DependencyIssue, ConfigurationError, RuntimeError, NetworkError"",
   ""confidenceScore"": 0.95,
-  ""recommendations"": [""Step 1: specific action"", ""Step 2: another action"", ""Step 3: verification step""]
+  ""recommendations"": [""Step 1: specific action"", ""Step 2: another action"", ""Step 3: verification step""],
+  ""suspectedCommits"": [
+    {
+      ""sha"": ""full commit SHA"",
+      ""shortSha"": ""first 7 chars"",
+      ""message"": ""commit message"",
+      ""author"": ""author name"",
+      ""commitDate"": ""ISO 8601 date"",
+      ""confidence"": 0.0-1.0,
+      ""reason"": ""why this commit is suspected"",
+      ""suspectedFiles"": [""file1.cs"", ""file2.cs""],
+      ""evidence"": ""evidence from failure log linking to this commit""
+    }
+  ]
 }
 
+If commit information is provided, analyze which commits are most likely responsible for the failure.
 Be specific, actionable, and confidence score should reflect certainty (0.0 to 1.0).
 Return ONLY valid JSON, no additional text or markdown.";
 
-        string userMessage = $@"Analyze this CI/CD pipeline failure log and provide root cause analysis:
+        // Build user message with optional commit context
+        var userMessageBuilder = new System.Text.StringBuilder();
+        userMessageBuilder.AppendLine("Analyze this CI/CD pipeline failure log and provide root cause analysis:");
+        userMessageBuilder.AppendLine();
+        userMessageBuilder.AppendLine("## Failure Log:");
+        userMessageBuilder.AppendLine("```");
+        userMessageBuilder.AppendLine(logContent);
+        userMessageBuilder.AppendLine("```");
 
-```
-{logContent}
-```";
+        // Add commit context if available
+        if (commitContext.HasValue && commitContext.Value.TryGetProperty("aiAnalysis", out var aiAnalysis))
+        {
+            userMessageBuilder.AppendLine();
+            userMessageBuilder.AppendLine("## Recent Commits Analysis:");
+            userMessageBuilder.AppendLine("The following commits were made recently and may be related to this failure:");
+            userMessageBuilder.AppendLine();
+            userMessageBuilder.AppendLine(aiAnalysis.GetString() ?? "");
+            userMessageBuilder.AppendLine();
+            userMessageBuilder.AppendLine("Based on both the failure log and the commit analysis above, identify which commits are most likely responsible.");
+        }
+
+        string userMessage = userMessageBuilder.ToString();
 
         var request = new ClaudeRequest(
             Message: userMessage,
@@ -76,6 +135,39 @@ Return ONLY valid JSON, no additional text or markdown.";
                 throw new InvalidOperationException("Failed to parse Claude's response");
             }
 
+            // Extract commit correlation metadata if available
+            CommitCorrelationMetadata? correlationMetadata = null;
+            if (commitContext.HasValue &&
+                commitContext.Value.TryGetProperty("repository", out var repo) &&
+                commitContext.Value.TryGetProperty("commitsAnalyzed", out var commitsAnalyzed))
+            {
+                var timeRangeStart = DateTime.UtcNow.AddHours(-24);
+                var timeRangeEnd = DateTime.UtcNow;
+                var lookbackHours = 24;
+
+                // Try to get time range from commit context
+                if (commitContext.Value.TryGetProperty("commitContext", out var innerContext))
+                {
+                    if (innerContext.TryGetProperty("timeRange", out var timeRange))
+                    {
+                        if (timeRange.TryGetProperty("since", out var since))
+                            DateTime.TryParse(since.GetString(), out timeRangeStart);
+                        if (timeRange.TryGetProperty("until", out var until))
+                            DateTime.TryParse(until.GetString(), out timeRangeEnd);
+                    }
+                }
+
+                lookbackHours = (int)(timeRangeEnd - timeRangeStart).TotalHours;
+
+                correlationMetadata = new CommitCorrelationMetadata(
+                    Repository: repo.GetString() ?? "unknown",
+                    TotalCommitsAnalyzed: commitsAnalyzed.GetInt32(),
+                    TimeRangeStart: timeRangeStart,
+                    TimeRangeEnd: timeRangeEnd,
+                    LookbackHours: lookbackHours
+                );
+            }
+
             // Map to RcaResult model
             var result = new RcaResult(
                 RootCause: rcaResult.RootCause,
@@ -87,7 +179,9 @@ Return ONLY valid JSON, no additional text or markdown.";
                 TokenUsage: new TokenUsage(
                     InputTokens: response.InputTokens,
                     OutputTokens: response.OutputTokens),
-                AnalyzedAt: DateTime.UtcNow);
+                AnalyzedAt: DateTime.UtcNow,
+                SuspectedCommits: rcaResult.SuspectedCommits,
+                CommitCorrelation: correlationMetadata);
 
             // Return as JSON string for Semantic Kernel
             return JsonSerializer.Serialize(result, new JsonSerializerOptions

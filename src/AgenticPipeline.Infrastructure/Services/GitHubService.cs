@@ -177,5 +177,15 @@ public class GitHubService : ICommitAnalyzer
 public record GitHubSettings(
     string PersonalAccessToken = "",
     string DefaultOwner = "",
-    string DefaultRepo = ""
-);
+    string DefaultRepo = "")
+{
+    /// <summary>
+    /// Default parameterless constructor for Options pattern
+    /// </summary>
+    public GitHubSettings() : this(
+        PersonalAccessToken: "",
+        DefaultOwner: "",
+        DefaultRepo: "")
+    {
+    }
+};
