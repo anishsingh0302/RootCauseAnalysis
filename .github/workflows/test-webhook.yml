@@ -1,0 +1,17 @@
+name: Test Webhook Integration
+  on:
+    workflow_dispatch:  # Manual trigger
+
+  jobs:
+    test-failure:
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v3
+
+        - name: Intentional Failure
+          run: |
+            echo "Testing Agentic Pipeline webhook integration..."
+            echo "This workflow will fail on purpose to trigger RCA analysis"
+            echo "Error: Simulated failure for testing webhook"
+            exit 1
