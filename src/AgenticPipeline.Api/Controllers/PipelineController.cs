@@ -18,6 +18,7 @@ public class PipelineController : ControllerBase
     private readonly ISimilarityService _similarityService;
     private readonly IEmbeddingService _embeddingService;
     private readonly IPatternRecognitionService _patternRecognitionService;
+    private readonly IPipelineOrchestrator? _pipelineOrchestrator;
     private readonly ILogger<PipelineController> _logger;
 
     public PipelineController(
@@ -27,7 +28,8 @@ public class PipelineController : ControllerBase
         ISimilarityService similarityService,
         IEmbeddingService embeddingService,
         IPatternRecognitionService patternRecognitionService,
-        ILogger<PipelineController> logger)
+        ILogger<PipelineController> logger,
+        IPipelineOrchestrator? pipelineOrchestrator = null)
     {
         _rcaPlugin = rcaPlugin;
         _commitAnalyzerPlugin = commitAnalyzerPlugin;
@@ -35,6 +37,7 @@ public class PipelineController : ControllerBase
         _similarityService = similarityService;
         _embeddingService = embeddingService;
         _patternRecognitionService = patternRecognitionService;
+        _pipelineOrchestrator = pipelineOrchestrator;
         _logger = logger;
     }
 
@@ -745,6 +748,148 @@ public class PipelineController : ControllerBase
             {
                 Title = "Pattern Detection Error",
                 Detail = $"An error occurred during pattern detection: {ex.Message}",
+                Status = StatusCodes.Status500InternalServerError
+            });
+        }
+    }
+
+    /// <summary>
+    /// Orchestrates a complete pipeline analysis including RCA, similarity search, pattern detection, and commit analysis
+    /// </summary>
+    /// <param name="request">Orchestration request with log content and optional GitHub context</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Comprehensive analysis result</returns>
+    [HttpPost("orchestrate")]
+    [ProducesResponseType(typeof(OrchestrationResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status501NotImplemented)]
+    public async Task<IActionResult> Orchestrate(
+        [FromBody] OrchestrationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (_pipelineOrchestrator == null)
+        {
+            return StatusCode(StatusCodes.Status501NotImplemented, new ProblemDetails
+            {
+                Title = "Feature Not Available",
+                Detail = "Pipeline orchestration is not configured. Please register IPipelineOrchestrator in Program.cs",
+                Status = StatusCodes.Status501NotImplemented
+            });
+        }
+
+        try
+        {
+            // Validate request
+            if (string.IsNullOrWhiteSpace(request.LogContent))
+            {
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid Request",
+                    Detail = "LogContent is required",
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+
+            if (request.SimilarFailuresCount <= 0 || request.SimilarFailuresCount > 100)
+            {
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid SimilarFailuresCount",
+                    Detail = "SimilarFailuresCount must be between 1 and 100",
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+
+            if (request.MinSimilarity < 0.0f || request.MinSimilarity > 1.0f)
+            {
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid MinSimilarity",
+                    Detail = "MinSimilarity must be between 0.0 and 1.0",
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+
+            _logger.LogInformation(
+                "Orchestration requested. LogLength: {LogLength}, EnableCommitAnalysis: {EnableCommitAnalysis}, EnablePatternDetection: {EnablePatternDetection}",
+                request.LogContent.Length, request.EnableCommitAnalysis, request.EnablePatternDetection);
+
+            // Execute orchestration
+            var result = await _pipelineOrchestrator.ExecuteAsync(request, cancellationToken);
+
+            _logger.LogInformation(
+                "Orchestration {OrchestrationId} completed with status {Status} in {Duration}s",
+                result.OrchestrationId, result.Status, result.Duration?.TotalSeconds);
+
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid orchestration request: {Message}", ex.Message);
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Invalid Request",
+                Detail = ex.Message,
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during pipeline orchestration");
+            return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+            {
+                Title = "Orchestration Error",
+                Detail = $"An error occurred during pipeline orchestration: {ex.Message}",
+                Status = StatusCodes.Status500InternalServerError
+            });
+        }
+    }
+
+    /// <summary>
+    /// Gets the status of an orchestration run
+    /// </summary>
+    /// <param name="orchestrationId">The orchestration ID</param>
+    /// <returns>Orchestration status and results</returns>
+    [HttpGet("orchestrate/{orchestrationId}")]
+    [ProducesResponseType(typeof(OrchestrationResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status501NotImplemented)]
+    public async Task<IActionResult> GetOrchestrationStatus([FromRoute] Guid orchestrationId)
+    {
+        if (_pipelineOrchestrator == null)
+        {
+            return StatusCode(StatusCodes.Status501NotImplemented, new ProblemDetails
+            {
+                Title = "Feature Not Available",
+                Detail = "Pipeline orchestration is not configured",
+                Status = StatusCodes.Status501NotImplemented
+            });
+        }
+
+        try
+        {
+            var result = await _pipelineOrchestrator.GetStatusAsync(orchestrationId);
+
+            if (result == null)
+            {
+                return NotFound(new ProblemDetails
+                {
+                    Title = "Not Found",
+                    Detail = $"Orchestration with ID {orchestrationId} was not found",
+                    Status = StatusCodes.Status404NotFound
+                });
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving orchestration status for {OrchestrationId}", orchestrationId);
+            return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+            {
+                Title = "Retrieval Error",
+                Detail = $"An error occurred while retrieving orchestration status: {ex.Message}",
                 Status = StatusCodes.Status500InternalServerError
             });
         }

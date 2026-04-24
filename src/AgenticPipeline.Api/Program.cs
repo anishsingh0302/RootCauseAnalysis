@@ -4,11 +4,18 @@ using AgenticPipeline.Infrastructure.Data;
 using AgenticPipeline.Infrastructure.Plugins;
 using AgenticPipeline.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Octokit;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Handle circular references in Entity Framework navigation properties
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
 
 // Add Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
@@ -26,6 +33,10 @@ builder.Services.Configure<GitHubSettings>(
 builder.Services.Configure<EmbeddingSettings>(
     builder.Configuration.GetSection(EmbeddingSettings.SectionName));
 
+// Configure Notification settings from appsettings.json
+builder.Services.Configure<NotificationSettings>(
+    builder.Configuration.GetSection(NotificationSettings.SectionName));
+
 // Configure Database (SQLite with EF Core)
 builder.Services.AddDbContext<AgenticPipelineDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -41,6 +52,32 @@ builder.Services.AddSingleton<ISimilarityService, CosineSimilarityService>();
 builder.Services.AddSingleton<IPatternRecognitionService, KMeansPatternRecognitionService>();
 builder.Services.AddSingleton<RcaPlugin>();
 builder.Services.AddSingleton<CommitAnalyzerPlugin>();
+
+// Register orchestration services
+builder.Services.AddScoped<IPipelineOrchestrator, PipelineOrchestrator>();
+builder.Services.AddSingleton<WebhookVerificationService>();
+
+// Register GitHub client with authentication
+builder.Services.AddSingleton<GitHubClient>(sp =>
+{
+    var gitHubSettings = sp.GetRequiredService<IOptions<GitHubSettings>>().Value;
+    var client = new GitHubClient(new ProductHeaderValue("AgenticPipeline"));
+
+    // Configure authentication if token is provided
+    if (!string.IsNullOrEmpty(gitHubSettings.PersonalAccessToken))
+    {
+        client.Credentials = new Credentials(gitHubSettings.PersonalAccessToken);
+    }
+
+    return client;
+});
+
+// Register GitHub Actions log service
+builder.Services.AddSingleton<GitHubActionsLogService>();
+
+// Register notification services
+builder.Services.AddSingleton<GitHubCommentService>();
+builder.Services.AddHttpClient<TeamsNotificationService>();
 
 // Add CORS (if needed for frontend)
 builder.Services.AddCors(options =>
@@ -73,6 +110,17 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors();
+
+// Enable request buffering for webhook endpoints to allow reading body multiple times
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api/webhook"))
+    {
+        context.Request.EnableBuffering();
+    }
+    await next();
+});
+
 app.UseAuthorization();
 app.MapControllers();
 

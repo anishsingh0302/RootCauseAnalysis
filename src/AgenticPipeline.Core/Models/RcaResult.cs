@@ -32,7 +32,7 @@ public record RcaResult(
 /// <param name="ShortSha">Short version of commit SHA (first 7 chars)</param>
 /// <param name="Message">Commit message</param>
 /// <param name="Author">Commit author</param>
-/// <param name="CommitDate">Date of the commit</param>
+/// <param name="CommitDate">Date of the commit (null if unknown)</param>
 /// <param name="Confidence">Confidence score that this commit caused the failure (0.0 to 1.0)</param>
 /// <param name="Reason">Explanation of why this commit is suspected</param>
 /// <param name="SuspectedFiles">Files in this commit that are likely related to the failure</param>
@@ -42,7 +42,7 @@ public record SuspectedCommit(
     string ShortSha,
     string Message,
     string Author,
-    DateTime CommitDate,
+    DateTime? CommitDate,
     double Confidence,
     string Reason,
     List<string> SuspectedFiles,

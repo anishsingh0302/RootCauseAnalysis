@@ -174,10 +174,12 @@ public class GitHubService : ICommitAnalyzer
 /// <param name="PersonalAccessToken">GitHub Personal Access Token for authentication</param>
 /// <param name="DefaultOwner">Default repository owner (optional)</param>
 /// <param name="DefaultRepo">Default repository name (optional)</param>
+/// <param name="WebhookSecret">Webhook secret for signature verification (optional)</param>
 public record GitHubSettings(
     string PersonalAccessToken = "",
     string DefaultOwner = "",
-    string DefaultRepo = "")
+    string DefaultRepo = "",
+    string WebhookSecret = "")
 {
     /// <summary>
     /// Default parameterless constructor for Options pattern
@@ -185,7 +187,8 @@ public record GitHubSettings(
     public GitHubSettings() : this(
         PersonalAccessToken: "",
         DefaultOwner: "",
-        DefaultRepo: "")
+        DefaultRepo: "",
+        WebhookSecret: "")
     {
     }
 };

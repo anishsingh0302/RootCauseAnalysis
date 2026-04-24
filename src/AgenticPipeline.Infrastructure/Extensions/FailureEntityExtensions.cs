@@ -93,7 +93,7 @@ public static class FailureEntityExtensions
             Sha = suspectedCommit.Sha,
             Author = suspectedCommit.Author,
             AuthorEmail = "", // Not available in SuspectedCommit
-            CommitDate = suspectedCommit.CommitDate,
+            CommitDate = suspectedCommit.CommitDate ?? DateTime.MinValue, // Use MinValue for unknown dates
             Message = suspectedCommit.Message,
             FilesChangedJson = JsonSerializer.Serialize(suspectedCommit.SuspectedFiles),
             ChangeType = "modified", // Default

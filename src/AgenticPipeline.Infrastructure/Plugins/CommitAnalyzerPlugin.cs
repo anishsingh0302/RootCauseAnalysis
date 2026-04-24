@@ -338,4 +338,52 @@ public class CommitAnalyzerPlugin
 
         return prompt.ToString();
     }
+
+    /// <summary>
+    /// Gets recent commits from a repository (non-JSON wrapper for orchestration)
+    /// </summary>
+    public async Task<List<CommitInfo>> GetRecentCommitsAsync(
+        string owner,
+        string repo,
+        int lookbackDays = 7,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation(
+                "Fetching recent commits for {Owner}/{Repo} (lookback: {Days} days)",
+                owner, repo, lookbackDays);
+
+            var since = DateTime.UtcNow.AddDays(-lookbackDays);
+            var until = DateTime.UtcNow;
+
+            var commits = await _commitAnalyzer.GetCommitsByTimeRangeAsync(owner, repo, since, until);
+
+            _logger.LogInformation("Found {Count} commits", commits.Count);
+
+            return commits;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching recent commits");
+            return new List<CommitInfo>();
+        }
+    }
+
+    /// <summary>
+    /// Correlates commits with a failure (wrapper that returns string for orchestration)
+    /// </summary>
+    public async Task<string> CorrelateCommitsWithFailureAsync(
+        string owner,
+        string repo,
+        string failureLog,
+        DateTime failureTimestamp,
+        int lookbackDays = 7,
+        CancellationToken cancellationToken = default)
+    {
+        var lookbackHours = lookbackDays * 24;
+        var timestampStr = failureTimestamp.ToString("yyyy-MM-ddTHH:mm:ssZ");
+
+        return await CorrelateCommitsWithFailure(owner, repo, failureLog, timestampStr, lookbackHours);
+    }
 }

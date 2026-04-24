@@ -75,7 +75,7 @@ Analyze the provided log and respond with a JSON object following this exact str
       ""shortSha"": ""first 7 chars"",
       ""message"": ""commit message"",
       ""author"": ""author name"",
-      ""commitDate"": ""ISO 8601 date"",
+      ""commitDate"": ""ISO 8601 date or null if unknown"",
       ""confidence"": 0.0-1.0,
       ""reason"": ""why this commit is suspected"",
       ""suspectedFiles"": [""file1.cs"", ""file2.cs""],
@@ -84,6 +84,7 @@ Analyze the provided log and respond with a JSON object following this exact str
   ]
 }
 
+IMPORTANT: For commitDate, use valid ISO 8601 format (e.g., ""2026-04-21T10:30:00Z"") or null if the date is not available. DO NOT use strings like ""Unknown"".
 If commit information is provided, analyze which commits are most likely responsible for the failure.
 Be specific, actionable, and confidence score should reflect certainty (0.0 to 1.0).
 Return ONLY valid JSON, no additional text or markdown.";

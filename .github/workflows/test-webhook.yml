@@ -1,0 +1,48 @@
+name: Test Webhook Integration
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/test-webhook.yml'
+
+jobs:
+  test-failure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Show environment info
+        run: |
+          echo "Testing Agentic Pipeline webhook integration"
+          echo "Workflow run ID: ${{ github.run_id }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit SHA: ${{ github.sha }}"
+
+      - name: Simulate some work
+        run: |
+          echo "Step 1: Setting up test environment..."
+          sleep 2
+          echo "Step 2: Running tests..."
+          sleep 2
+          echo "Step 3: Processing data..."
+          sleep 2
+
+      - name: Intentional Failure
+        run: |
+          echo "ERROR: Simulated failure for testing webhook integration"
+          echo "This failure should trigger the Agentic Pipeline RCA analysis"
+          echo "Expected behavior:"
+          echo "  1. GitHub sends webhook to your API"
+          echo "  2. API downloads these logs"
+          echo "  3. Claude analyzes the failure"
+          echo "  4. Teams notification sent"
+          exit 1
+
+      - name: This step will not run
+        if: success()
+        run: echo "This step is skipped because previous step failed"
