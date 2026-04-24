@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Failure Analysis Report</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header .meta {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+
+        .status-completed { background: #d4edda; color: #155724; }
+        .status-partial { background: #fff3cd; color: #856404; }
+        .status-failed { background: #f8d7da; color: #721c24; }
+
+        .confidence {
+            display: inline-block;
+            padding: 5px 15px;
+            background: #e3f2fd;
+            color: #1976d2;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .card {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .recommendation-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #28a745;
+        }
+
+        .commit-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .commit-sha {
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .similar-failure {
+            background: white;
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .similarity-score {
+            display: inline-block;
+            padding: 3px 10px;
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .pattern-info {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .component-tag {
+            display: inline-block;
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 5px 10px;
+            margin: 5px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        .execution-step {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .step-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+        }
+
+        .step-success { background: #28a745; }
+        .step-failed { background: #dc3545; }
+
+        .step-info {
+            flex: 1;
+        }
+
+        .step-name {
+            font-weight: 600;
+        }
+
+        .step-duration {
+            font-size: 12px;
+            color: #666;
+        }
+
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1> Failure Analysis Report</h1>
+            <div class="meta">
+                <div>Orchestration ID: <strong>{{OrchestrationId}}</strong></div>
+                <div>Analyzed: {{AnalyzedAt}} | Duration: {{Duration}}</div>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- Status Section -->
+            <div class="section">
+                <span class="status-badge status-{{StatusClass}}">{{Status}}</span>
+                <span class="confidence">Confidence: {{Confidence}}</span>
+            </div>
+
+            <!-- Root Cause Section -->
+            <div class="section">
+                <h2 class="section-title">Root Cause Analysis</h2>
+                <div class="card">
+                    <strong>Error Type:</strong> {{ErrorType}}
+                    <p style="margin-top: 15px;"><strong>Root Cause:</strong></p>
+                    <p>{{RootCause}}</p>
+
+                    <p style="margin-top: 15px;"><strong>Detailed Analysis:</strong></p>
+                    <p>{{DetailedAnalysis}}</p>
+                </div>
+
+                <div style="margin-top: 15px;">
+                    <strong>Affected Components:</strong><br>
+                    {{AffectedComponents}}
+                </div>
+            </div>
+
+            <!-- Recommendations Section -->
+            <div class="section">
+                <h2 class="section-title"> Recommendations</h2>
+                {{Recommendations}}
+            </div>
+
+            <!-- Similar Failures Section -->
+            {{#if HasSimilarFailures}}
+            <div class="section">
+                <h2 class="section-title"> Similar Historical Failures</h2>
+                <p>Found {{SimilarFailureCount}} similar past failure(s):</p>
+                {{SimilarFailures}}
+            </div>
+            {{/if}}
+
+            <!-- Pattern Recognition Section -->
+            {{#if HasPattern}}
+            <div class="section">
+                <h2 class="section-title">Pattern Recognition</h2>
+                {{PatternInfo}}
+            </div>
+            {{/if}}
+
+            <!-- Commit Analysis Section -->
+            {{#if HasCommits}}
+            <div class="section">
+                <h2 class="section-title">Related Commits</h2>
+                <p>Analyzed {{CommitCount}} recent commit(s):</p>
+                {{Commits}}
+            </div>
+            {{/if}}
+
+            <!-- Execution Summary Section -->
+            <div class="section">
+                <h2 class="section-title">Execution Summary</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">{{TotalSteps}}</div>
+                        <div class="stat-label">Steps Executed</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">{{TotalTokens}}</div>
+                        <div class="stat-label">Total Tokens</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">{{Duration}}</div>
+                        <div class="stat-label">Duration</div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    {{ExecutionSteps}}
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            Generated by Agentic Pipeline • Powered by Claude Sonnet 4
+        </div>
+    </div>
+</body>
+</html>

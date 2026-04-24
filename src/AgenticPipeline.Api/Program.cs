@@ -79,6 +79,9 @@ builder.Services.AddSingleton<GitHubActionsLogService>();
 builder.Services.AddSingleton<GitHubCommentService>();
 builder.Services.AddHttpClient<TeamsNotificationService>();
 
+// Register auto-fix service
+builder.Services.AddScoped<IAutoFixService, AutoFixService>();
+
 // Add CORS (if needed for frontend)
 builder.Services.AddCors(options =>
 {

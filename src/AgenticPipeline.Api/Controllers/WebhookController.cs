@@ -14,33 +14,24 @@ namespace AgenticPipeline.Api.Controllers;
 [Route("api/[controller]")]
 public class WebhookController : ControllerBase
 {
-    private readonly IPipelineOrchestrator? _orchestrator;
-    private readonly GitHubActionsLogService? _logService;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly WebhookVerificationService _verificationService;
     private readonly GitHubSettings _gitHubSettings;
     private readonly NotificationSettings _notificationSettings;
-    private readonly TeamsNotificationService? _teamsService;
-    private readonly GitHubCommentService? _githubCommentService;
     private readonly ILogger<WebhookController> _logger;
 
     public WebhookController(
+        IServiceScopeFactory scopeFactory,
         WebhookVerificationService verificationService,
         IOptions<GitHubSettings> gitHubSettings,
         IOptions<NotificationSettings> notificationSettings,
-        ILogger<WebhookController> logger,
-        IPipelineOrchestrator? orchestrator = null,
-        GitHubActionsLogService? logService = null,
-        TeamsNotificationService? teamsService = null,
-        GitHubCommentService? githubCommentService = null)
+        ILogger<WebhookController> logger)
     {
+        _scopeFactory = scopeFactory;
         _verificationService = verificationService;
         _gitHubSettings = gitHubSettings.Value;
         _notificationSettings = notificationSettings.Value;
         _logger = logger;
-        _orchestrator = orchestrator;
-        _logService = logService;
-        _teamsService = teamsService;
-        _githubCommentService = githubCommentService;
     }
 
     /// <summary>
@@ -115,24 +106,14 @@ public class WebhookController : ControllerBase
                 });
             }
 
-            // Check if orchestrator is available
-            if (_orchestrator == null || _logService == null)
-            {
-                _logger.LogWarning("Orchestrator or log service not configured");
-                return StatusCode(StatusCodes.Status501NotImplemented, new ProblemDetails
-                {
-                    Title = "Feature Not Available",
-                    Detail = "Webhook processing requires orchestrator and log service to be configured",
-                    Status = StatusCodes.Status501NotImplemented
-                });
-            }
-
-            // Process the webhook asynchronously (fire and forget)
+            // Process the webhook asynchronously (fire and forget) with a new DI scope
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    await ProcessWorkflowFailureAsync(payload);
+                    // Create a new scope for the background task to avoid DbContext disposal issues
+                    using var scope = _scopeFactory.CreateScope();
+                    await ProcessWorkflowFailureAsync(payload, scope.ServiceProvider);
                 }
                 catch (Exception ex)
                 {
@@ -159,19 +140,32 @@ public class WebhookController : ControllerBase
         }
     }
 
-    private async Task ProcessWorkflowFailureAsync(GitHubWebhookPayload payload)
+    private async Task ProcessWorkflowFailureAsync(GitHubWebhookPayload payload, IServiceProvider serviceProvider)
     {
         try
         {
-            if (payload.WorkflowRun == null || payload.Repository == null || _orchestrator == null || _logService == null)
+            if (payload.WorkflowRun == null || payload.Repository == null)
                 return;
+
+            // Resolve services from the scoped service provider
+            var orchestrator = serviceProvider.GetService<IPipelineOrchestrator>();
+            var logService = serviceProvider.GetService<GitHubActionsLogService>();
+            var teamsService = serviceProvider.GetService<TeamsNotificationService>();
+            var githubCommentService = serviceProvider.GetService<GitHubCommentService>();
+            var autoFixService = serviceProvider.GetService<IAutoFixService>();
+
+            if (orchestrator == null || logService == null)
+            {
+                _logger.LogWarning("Orchestrator or log service not configured");
+                return;
+            }
 
             _logger.LogInformation(
                 "Processing workflow failure: RunId={RunId}, Repo={Repo}",
                 payload.WorkflowRun.Id, payload.Repository.FullName);
 
             // Fetch workflow logs
-            var logs = await _logService.FetchWorkflowLogsAsync(
+            var logs = await logService.FetchWorkflowLogsAsync(
                 payload.Repository.Owner!.Login,
                 payload.Repository.Name,
                 payload.WorkflowRun.Id);
@@ -208,14 +202,14 @@ public class WebhookController : ControllerBase
             };
 
             // Execute orchestration
-            var result = await _orchestrator.ExecuteAsync(request, CancellationToken.None);
+            var result = await orchestrator.ExecuteAsync(request, CancellationToken.None);
 
             _logger.LogInformation(
                 "Workflow failure analysis completed: OrchestrationId={OrchestrationId}, Status={Status}",
                 result.OrchestrationId, result.Status);
 
             // Send notifications based on configuration
-            await SendNotificationsAsync(payload, result);
+            await SendNotificationsAsync(payload, result, teamsService, githubCommentService, autoFixService);
         }
         catch (Exception ex)
         {
@@ -226,7 +220,12 @@ public class WebhookController : ControllerBase
         }
     }
 
-    private async Task SendNotificationsAsync(GitHubWebhookPayload payload, OrchestrationResult result)
+    private async Task SendNotificationsAsync(
+        GitHubWebhookPayload payload,
+        OrchestrationResult result,
+        TeamsNotificationService? teamsService,
+        GitHubCommentService? githubCommentService,
+        IAutoFixService? autoFixService)
     {
         try
         {
@@ -241,14 +240,14 @@ public class WebhookController : ControllerBase
             }
 
             // Send Teams notification if configured
-            if (!string.IsNullOrEmpty(_notificationSettings.TeamsWebhookUrl) && _teamsService != null)
+            if (!string.IsNullOrEmpty(_notificationSettings.TeamsWebhookUrl) && teamsService != null)
             {
                 if (_notificationSettings.NotifyOnAllFailures ||
                     (_notificationSettings.NotifyOnNewPatterns && result.AssignedPattern != null))
                 {
                     try
                     {
-                        await _teamsService.SendNotificationAsync(
+                        await teamsService.SendNotificationAsync(
                             _notificationSettings.TeamsWebhookUrl,
                             result);
 
@@ -263,7 +262,7 @@ public class WebhookController : ControllerBase
             }
 
             // Post GitHub PR comment if configured
-            if (_notificationSettings.PostToGitHubPRs && _githubCommentService != null &&
+            if (_notificationSettings.PostToGitHubPRs && githubCommentService != null &&
                 payload.Repository != null)
             {
                 // Try to find associated PR for the commit
@@ -274,7 +273,7 @@ public class WebhookController : ControllerBase
 
             // Create GitHub issue for new patterns if configured
             if (_notificationSettings.CreateGitHubIssuesForPatterns &&
-                _githubCommentService != null &&
+                githubCommentService != null &&
                 result.AssignedPattern != null &&
                 payload.Repository != null)
             {
@@ -283,7 +282,7 @@ public class WebhookController : ControllerBase
                     // Only create issue if this is a new pattern (high frequency = established pattern)
                     if (result.AssignedPattern.Frequency < 1.0) // Less than 1/day = new/rare pattern
                     {
-                        await _githubCommentService.CreateIssueForPatternAsync(
+                        await githubCommentService.CreateIssueForPatternAsync(
                             payload.Repository.Owner!.Login,
                             payload.Repository.Name,
                             result.AssignedPattern,
@@ -299,6 +298,71 @@ public class WebhookController : ControllerBase
                     _logger.LogError(ex, "Failed to create GitHub issue for pattern");
                 }
             }
+
+            // Generate and apply auto-fix PR if configured
+            if (_notificationSettings.CreateAutoFixPRs &&
+                result.Failure != null &&
+                payload.Repository != null &&
+                autoFixService != null)
+            {
+                try
+                {
+                    // Check if confidence is high enough for auto-fix
+                    if (result.Failure.ConfidenceScore >= _notificationSettings.MinConfidenceForAutoFixPR)
+                    {
+                        _logger.LogInformation(
+                            "Attempting to generate auto-fix for orchestration {OrchestrationId}",
+                            result.OrchestrationId);
+
+                        var autoFix = await autoFixService.GenerateFixAsync(
+                            result,
+                            payload.Repository.Owner!.Login,
+                            payload.Repository.Name);
+
+                        if (autoFix.FixGenerated && autoFix.IsSafeToApply)
+                        {
+                            _logger.LogInformation(
+                                "Auto-fix generated successfully. Creating PR...");
+
+                            var prNumber = await autoFixService.ApplyFixAndCreatePRAsync(
+                                autoFix,
+                                payload.Repository.Owner!.Login,
+                                payload.Repository.Name);
+
+                            if (prNumber.HasValue)
+                            {
+                                _logger.LogInformation(
+                                    "Created auto-fix PR #{PrNumber} for orchestration {OrchestrationId}",
+                                    prNumber.Value,
+                                    result.OrchestrationId);
+                            }
+                            else
+                            {
+                                _logger.LogWarning(
+                                    "Failed to create auto-fix PR for orchestration {OrchestrationId}",
+                                    result.OrchestrationId);
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogInformation(
+                                "Auto-fix not generated or not safe to apply: {Reason}",
+                                autoFix.Reason ?? "Unknown reason");
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogInformation(
+                            "Skipping auto-fix due to low confidence: {Confidence} < {Threshold}",
+                            result.Failure.ConfidenceScore,
+                            _notificationSettings.MinConfidenceForAutoFixPR);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error generating or applying auto-fix");
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -311,17 +375,20 @@ public class WebhookController : ControllerBase
     /// </summary>
     [HttpGet("test")]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
-    public IActionResult TestWebhook()
+    public IActionResult TestWebhook([FromServices] IPipelineOrchestrator? orchestrator,
+        [FromServices] GitHubActionsLogService? logService,
+        [FromServices] TeamsNotificationService? teamsService,
+        [FromServices] GitHubCommentService? githubCommentService)
     {
         return Ok(new
         {
             Status = "Webhook endpoint is reachable",
             Timestamp = DateTime.UtcNow,
             SignatureVerificationEnabled = !string.IsNullOrEmpty(_gitHubSettings.WebhookSecret),
-            OrchestratorConfigured = _orchestrator != null,
-            LogServiceConfigured = _logService != null,
+            OrchestratorConfigured = orchestrator != null,
+            LogServiceConfigured = logService != null,
             TeamsNotificationConfigured = !string.IsNullOrEmpty(_notificationSettings.TeamsWebhookUrl),
-            GitHubCommentServiceConfigured = _githubCommentService != null
+            GitHubCommentServiceConfigured = githubCommentService != null
         });
     }
 }

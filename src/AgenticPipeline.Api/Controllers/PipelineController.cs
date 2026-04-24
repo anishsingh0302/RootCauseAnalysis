@@ -896,6 +896,78 @@ public class PipelineController : ControllerBase
     }
 
     /// <summary>
+    /// Get orchestration status as HTML report
+    /// </summary>
+    [HttpGet("orchestrate/{orchestrationId}/html")]
+    [Produces("text/html")]
+    public async Task<IActionResult> GetOrchestrationHtmlReport([FromRoute] Guid orchestrationId)
+    {
+        if (_pipelineOrchestrator == null)
+        {
+            return Content("<html><body><h1>Feature Not Available</h1><p>Pipeline orchestration is not configured</p></body></html>", "text/html");
+        }
+
+        try
+        {
+            var result = await _pipelineOrchestrator.GetStatusAsync(orchestrationId);
+
+            if (result == null)
+            {
+                return Content($"<html><body><h1>Not Found</h1><p>Orchestration with ID {orchestrationId} was not found</p></body></html>", "text/html");
+            }
+
+            // Read the HTML template
+            var templatePath = Path.Combine(AppContext.BaseDirectory, "Views", "OrchestrationReport.html");
+            if (!System.IO.File.Exists(templatePath))
+            {
+                return Content("<html><body><h1>Error</h1><p>HTML template not found</p></body></html>", "text/html");
+            }
+
+            var template = await System.IO.File.ReadAllTextAsync(templatePath);
+
+            // Simple template replacement
+            var html = template
+                .Replace("{{OrchestrationId}}", orchestrationId.ToString())
+                .Replace("{{AnalyzedAt}}", result.StartedAt.ToString("yyyy-MM-dd HH:mm:ss UTC"))
+                .Replace("{{Duration}}", result.Duration?.ToString(@"hh\:mm\:ss") ?? "N/A")
+                .Replace("{{Status}}", result.Status.ToString())
+                .Replace("{{StatusClass}}", result.Status.ToString().ToLower())
+                .Replace("{{Confidence}}", result.Failure?.ConfidenceScore.ToString("P0") ?? "N/A")
+                .Replace("{{ErrorType}}", result.Failure?.ErrorType ?? "Unknown")
+                .Replace("{{RootCause}}", result.Failure?.RootCause ?? "No analysis available")
+                .Replace("{{DetailedAnalysis}}", result.Failure?.DetailedAnalysis ?? "No detailed analysis available")
+                .Replace("{{AffectedComponents}}", string.Join("", System.Text.Json.JsonSerializer.Deserialize<List<string>>(result.Failure?.AffectedComponentsJson ?? "[]")?.Select(c => $"<span class='component-tag'>{c}</span>") ?? Array.Empty<string>()))
+                .Replace("{{Recommendations}}", string.Join("", System.Text.Json.JsonSerializer.Deserialize<List<string>>(result.Failure?.RecommendationsJson ?? "[]")?.Select((r, i) => $"<div class='recommendation-item'><strong>{i + 1}.</strong> {r}</div>") ?? Array.Empty<string>()))
+                .Replace("{{SimilarFailureCount}}", result.SimilarFailures?.Count.ToString() ?? "0")
+                .Replace("{{SimilarFailures}}", string.Join("", result.SimilarFailures?.Select(sf =>
+                    $"<div class='similar-failure'><strong>Failure #{sf.FailureId}</strong> <span class='similarity-score'>{sf.Similarity:P0} similar</span><br><strong>{sf.ErrorType}</strong><br>{sf.RootCause}</div>") ?? Array.Empty<string>()))
+                .Replace("{{CommitCount}}", result.RelatedCommits?.Count.ToString() ?? "0")
+                .Replace("{{Commits}}", string.Join("", result.RelatedCommits?.Take(5).Select(c =>
+                    $"<div class='commit-item'><span class='commit-sha'>{c.Sha[..7]}</span> by {c.Author}<br>{c.Message}<br><small>{c.CommitDate:yyyy-MM-dd HH:mm}</small></div>") ?? Array.Empty<string>()))
+                .Replace("{{PatternInfo}}", result.AssignedPattern != null ?
+                    $"<div class='pattern-info'><strong>Pattern:</strong> {result.AssignedPattern.Name}<br><strong>Frequency:</strong> {result.AssignedPattern.Frequency:F1} failures/day<br><strong>Total Occurrences:</strong> {result.AssignedPattern.FailureCount}<br><strong>Similarity:</strong> {result.PatternSimilarity:P0}</div>" : "")
+                .Replace("{{TotalSteps}}", result.ExecutionSteps?.Count.ToString() ?? "0")
+                .Replace("{{TotalTokens}}", (result.TotalInputTokens + result.TotalOutputTokens).ToString())
+                .Replace("{{ExecutionSteps}}", string.Join("", result.ExecutionSteps?.Select(step =>
+                    $"<div class='execution-step'><div class='step-icon step-{(step.Success ? "success" : "failed")}'>{(step.Success ? "✓" : "✗")}</div><div class='step-info'><div class='step-name'>{step.StepName}</div><div class='step-duration'>{step.Duration?.TotalSeconds.ToString("F1") ?? "0.0"}s</div></div></div>") ?? Array.Empty<string>()));
+
+            // Handle conditional sections
+            html = html.Replace("{{#if HasSimilarFailures}}", result.SimilarFailures?.Count > 0 ? "" : "<!--")
+                       .Replace("{{/if}}", result.SimilarFailures?.Count > 0 ? "" : "-->");
+
+            html = html.Replace("{{#if HasPattern}}", result.AssignedPattern != null ? "" : "<!--");
+            html = html.Replace("{{#if HasCommits}}", result.RelatedCommits?.Count > 0 ? "" : "<!--");
+
+            return Content(html, "text/html");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving orchestration HTML report for {OrchestrationId}", orchestrationId);
+            return Content($"<html><body><h1>Error</h1><p>{ex.Message}</p></body></html>", "text/html");
+        }
+    }
+
+    /// <summary>
     /// Health check endpoint
     /// </summary>
     /// <returns>Health status</returns>

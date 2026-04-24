@@ -42,16 +42,16 @@ Write-Host ""
 $payload = @'
 {
   "action": "completed",
-  "WorkflowRun": {
-    "id": 24836331620,
+  "workflow_run": {
+    "id": 24887320151,
     "name": "Test Webhook Integration",
     "status": "completed",
     "conclusion": "failure",
-    "html_url": "https://github.com/anishsingh0302/AgenticPipeline/actions/runs/24836331620/workflow",
-    "created_at": "2026-04-24T12:01:08Z",
-    "updated_at": "2026-04-24T13:05:00Z",
+    "html_url": "https://github.com/anishsingh0302/AgenticPipeline/actions/runs/24887320151",
+    "created_at": "2026-04-24T11:32:46Z",
+    "updated_at": "2026-04-24T11:33:03Z",
     "head_branch": "master",
-    "head_sha": "61f0196a1fa663387660b02391a56dc058a85cd3"
+    "head_sha": "abc123def456"
   },
   "repository": {
     "id": 1201454310,

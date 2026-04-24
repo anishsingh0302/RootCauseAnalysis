@@ -23,4 +23,10 @@
     <ProjectReference Include="..\AgenticPipeline.Infrastructure\AgenticPipeline.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="Views\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

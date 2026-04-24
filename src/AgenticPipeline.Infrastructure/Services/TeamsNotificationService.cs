@@ -1,5 +1,6 @@
 using AgenticPipeline.Core.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System.Text;
 using System.Text.Json;
 
@@ -12,13 +13,16 @@ public class TeamsNotificationService
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<TeamsNotificationService> _logger;
+    private readonly string? _apiBaseUrl;
 
     public TeamsNotificationService(
         HttpClient httpClient,
-        ILogger<TeamsNotificationService> logger)
+        ILogger<TeamsNotificationService> logger,
+        IOptions<NotificationSettings> notificationSettings)
     {
         _httpClient = httpClient;
         _logger = logger;
+        _apiBaseUrl = notificationSettings.Value.ApiBaseUrl;
     }
 
     /// <summary>
@@ -267,13 +271,16 @@ public class TeamsNotificationService
         // Add Actions
         var actions = new List<object>();
 
-        // Add view details action if we have orchestration ID
-        actions.Add(new
+        // Add view details action if we have orchestration ID and API base URL configured
+        if (!string.IsNullOrEmpty(_apiBaseUrl))
         {
-            type = "Action.OpenUrl",
-            title = "View Full Report",
-            url = $"https://your-api-domain.com/api/pipeline/orchestrate/{result.OrchestrationId}"
-        });
+            actions.Add(new
+            {
+                type = "Action.OpenUrl",
+                title = "View Full Report",
+                url = $"{_apiBaseUrl.TrimEnd('/')}/api/pipeline/orchestrate/{result.OrchestrationId}/html"
+            });
+        }
 
         return new
         {
