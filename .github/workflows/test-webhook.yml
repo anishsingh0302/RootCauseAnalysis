@@ -45,4 +45,4 @@ jobs:
 
       - name: This step will not run
         if: success()
-        run: echo "This step is skipped because previous step failed"
+        run: echo "This step is skipped because previous step failed "
