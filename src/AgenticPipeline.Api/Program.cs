@@ -29,6 +29,10 @@ builder.Services.Configure<ClaudeSettings>(
 builder.Services.Configure<GitHubSettings>(
     builder.Configuration.GetSection("GitHub"));
 
+// Configure Azure DevOps settings from appsettings.json
+builder.Services.Configure<AzureDevOpsSettings>(
+    builder.Configuration.GetSection(AzureDevOpsSettings.SectionName));
+
 // Configure Embedding settings from appsettings.json
 builder.Services.Configure<EmbeddingSettings>(
     builder.Configuration.GetSection(EmbeddingSettings.SectionName));
@@ -74,6 +78,9 @@ builder.Services.AddSingleton<GitHubClient>(sp =>
 
 // Register GitHub Actions log service
 builder.Services.AddSingleton<GitHubActionsLogService>();
+
+// Register Azure DevOps log service with HttpClient
+builder.Services.AddHttpClient<AzureDevOpsLogService>();
 
 // Register notification services
 builder.Services.AddSingleton<GitHubCommentService>();

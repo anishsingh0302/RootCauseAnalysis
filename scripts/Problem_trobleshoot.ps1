@@ -198,6 +198,8 @@
 
   #>
 
+  <#
+
   
    # Create a test with sample failure logs
   $logContent = @"
@@ -273,4 +275,27 @@
           Write-Host "`nDetails:" -ForegroundColor Yellow
           Write-Host $_.ErrorDetails.Message -ForegroundColor Red
       }
+  }
+
+  #>
+
+  ########Azure Devops troubleshoot #######################
+
+  $org = "anishsingh0302"
+  $project = "AgenticPipeline"
+  $buildId = 6
+  $pat = $env:AzureDevOps__PersonalAccessToken
+
+  Write-Host "Testing PAT: $($pat.Substring(0,10))..." -ForegroundColor Yellow
+
+  $base64 = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(":$pat"))
+  $headers = @{Authorization = "Basic $base64"}
+
+  try {
+      $result = Invoke-RestMethod -Uri "https://dev.azure.com/$org/$project/_apis/build/builds/$buildId?api-version=7.1-preview.7" -Headers $headers
+      Write-Host "✓ PAT WORKS! Build info retrieved successfully" -ForegroundColor Green
+      $result | ConvertTo-Json -Depth 2
+  } catch {
+      Write-Host "✗ PAT FAILED: $($_.Exception.Message)" -ForegroundColor Red
+      Write-Host "Status Code: $($_.Exception.Response.StatusCode.value__)" -ForegroundColor Red
   }

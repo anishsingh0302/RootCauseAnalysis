@@ -187,6 +187,26 @@ public class AutoFixService : IAutoFixService
                             // File doesn't exist, that's okay if we're creating it
                         }
 
+                        // Determine final content
+                        string finalContent;
+                        if (fileChange.LineChanges != null && fileChange.LineChanges.Count > 0)
+                        {
+                            // Apply line-based changes
+                            if (existingFile == null || existingFile.Count == 0)
+                            {
+                                _logger.LogError("Cannot apply line changes to non-existent file {FilePath}", fileChange.FilePath);
+                                continue;
+                            }
+
+                            finalContent = ApplyLineChanges(existingFile[0].Content, fileChange.LineChanges);
+                            _logger.LogInformation("Applied {Count} line changes to {FilePath}", fileChange.LineChanges.Count, fileChange.FilePath);
+                        }
+                        else
+                        {
+                            // Use full content
+                            finalContent = fileChange.NewContent ?? string.Empty;
+                        }
+
                         if (existingFile != null && existingFile.Count > 0)
                         {
                             // Update existing file
@@ -196,7 +216,7 @@ public class AutoFixService : IAutoFixService
                                 fileChange.FilePath,
                                 new UpdateFileRequest(
                                     $"Auto-fix: {fileChange.ChangeReason}",
-                                    fileChange.NewContent ?? string.Empty,
+                                    finalContent,
                                     existingFile[0].Sha,
                                     autoFixResult.BranchName));
 
@@ -211,7 +231,7 @@ public class AutoFixService : IAutoFixService
                                 fileChange.FilePath,
                                 new CreateFileRequest(
                                     $"Auto-fix: {fileChange.ChangeReason}",
-                                    fileChange.NewContent ?? string.Empty,
+                                    finalContent,
                                     autoFixResult.BranchName));
 
                             _logger.LogInformation("Created file {FilePath}", fileChange.FilePath);
@@ -294,6 +314,9 @@ public class AutoFixService : IAutoFixService
         prompt.AppendLine();
         prompt.AppendLine("## Response Format");
         prompt.AppendLine("Respond with a JSON object in this exact format:");
+        prompt.AppendLine("**IMPORTANT:** For efficiency, use 'lineChanges' instead of 'newContent' when possible.");
+        prompt.AppendLine("Only use 'newContent' for very small files (< 50 lines) or when creating new files.");
+        prompt.AppendLine();
         prompt.AppendLine("```json");
         prompt.AppendLine("{");
         prompt.AppendLine("  \"fixGenerated\": true,");
@@ -305,12 +328,21 @@ public class AutoFixService : IAutoFixService
         prompt.AppendLine("    {");
         prompt.AppendLine("      \"filePath\": \"path/to/file.cs\",");
         prompt.AppendLine("      \"changeType\": \"Modify\",");
-        prompt.AppendLine("      \"newContent\": \"Full new content of the file\",");
-        prompt.AppendLine("      \"changeReason\": \"Why this change fixes the issue\"");
+        prompt.AppendLine("      \"lineChanges\": [");
+        prompt.AppendLine("        {");
+        prompt.AppendLine("          \"lineNumber\": 23,");
+        prompt.AppendLine("          \"originalLine\": \"Assert.Equal(20, customers.Count());\",");
+        prompt.AppendLine("          \"newLine\": \"Assert.Equal(21, customers.Count());\",");
+        prompt.AppendLine("          \"changeType\": \"replace\"");
+        prompt.AppendLine("        }");
+        prompt.AppendLine("      ],");
+        prompt.AppendLine("      \"changeReason\": \"Fixed off-by-one error in expected count\"");
         prompt.AppendLine("    }");
         prompt.AppendLine("  ]");
         prompt.AppendLine("}");
         prompt.AppendLine("```");
+        prompt.AppendLine();
+        prompt.AppendLine("**Note:** changeType can be 'replace', 'insert', or 'delete'. Use 'insert' to add a new line before lineNumber.");
 
         return prompt.ToString();
     }
@@ -319,6 +351,9 @@ public class AutoFixService : IAutoFixService
     {
         try
         {
+            // Log response length for diagnostics
+            _logger.LogDebug("Parsing fix response: {Length} characters", response.Length);
+
             // Extract JSON from response (may be wrapped in markdown code blocks)
             var jsonStart = response.IndexOf('{');
             var jsonEnd = response.LastIndexOf('}') + 1;
@@ -326,16 +361,64 @@ public class AutoFixService : IAutoFixService
             if (jsonStart >= 0 && jsonEnd > jsonStart)
             {
                 var json = response.Substring(jsonStart, jsonEnd - jsonStart);
+
+                // Check if JSON looks truncated (common signs)
+                if (!json.TrimEnd().EndsWith("}") && !json.TrimEnd().EndsWith("]"))
+                {
+                    _logger.LogWarning("JSON appears truncated (doesn't end with }} or ]). Length: {Length}", json.Length);
+                    return new AutoFixResult
+                    {
+                        FixGenerated = false,
+                        IsSafeToApply = false,
+                        Reason = "Response was truncated - likely hit token limit. Try using lineChanges instead of full file content."
+                    };
+                }
+
                 var options = new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true,
                     Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter(allowIntegerValues: false) }
                 };
-                return JsonSerializer.Deserialize<AutoFixResult>(json, options) ?? new AutoFixResult
+
+                var result = JsonSerializer.Deserialize<AutoFixResult>(json, options);
+
+                if (result == null)
+                {
+                    _logger.LogWarning("Deserialization returned null");
+                    return new AutoFixResult
+                    {
+                        FixGenerated = false,
+                        IsSafeToApply = false,
+                        Reason = "Failed to parse fix response"
+                    };
+                }
+
+                _logger.LogInformation("Successfully parsed fix response: FixGenerated={FixGenerated}, FileChanges={FileChangeCount}",
+                    result.FixGenerated, result.FileChanges.Count);
+
+                return result;
+            }
+
+            _logger.LogWarning("No valid JSON found in response");
+            return new AutoFixResult
+            {
+                FixGenerated = false,
+                IsSafeToApply = false,
+                Reason = "No valid JSON found in response"
+            };
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "JSON parsing error. Response length: {Length} chars", response.Length);
+
+            // Check if it's a truncation error
+            if (ex.Message.Contains("Expected end of string") || ex.Message.Contains("reached end of data"))
+            {
+                return new AutoFixResult
                 {
                     FixGenerated = false,
                     IsSafeToApply = false,
-                    Reason = "Failed to parse fix response"
+                    Reason = "Response was truncated due to token limit. Consider increasing MaxTokens or using smaller line-based changes."
                 };
             }
 
@@ -343,7 +426,7 @@ public class AutoFixService : IAutoFixService
             {
                 FixGenerated = false,
                 IsSafeToApply = false,
-                Reason = "No valid JSON found in response"
+                Reason = $"Error parsing response: {ex.Message}"
             };
         }
         catch (Exception ex)
@@ -356,6 +439,59 @@ public class AutoFixService : IAutoFixService
                 Reason = $"Error parsing response: {ex.Message}"
             };
         }
+    }
+
+    private string ApplyLineChanges(string originalContent, List<LineChange> lineChanges)
+    {
+        var lines = originalContent.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None).ToList();
+
+        // Sort changes by line number in descending order to avoid index shifts
+        var sortedChanges = lineChanges.OrderByDescending(c => c.LineNumber).ToList();
+
+        foreach (var change in sortedChanges)
+        {
+            var lineIndex = change.LineNumber - 1; // Convert to 0-based index
+
+            if (lineIndex < 0 || lineIndex >= lines.Count)
+            {
+                _logger.LogWarning("Line number {LineNumber} out of range (file has {LineCount} lines)",
+                    change.LineNumber, lines.Count);
+                continue;
+            }
+
+            switch (change.ChangeType.ToLower())
+            {
+                case "replace":
+                    if (change.NewLine != null)
+                    {
+                        lines[lineIndex] = change.NewLine;
+                        _logger.LogDebug("Replaced line {LineNumber}: {OldLine} -> {NewLine}",
+                            change.LineNumber, change.OriginalLine, change.NewLine);
+                    }
+                    break;
+
+                case "insert":
+                    if (change.NewLine != null)
+                    {
+                        lines.Insert(lineIndex, change.NewLine);
+                        _logger.LogDebug("Inserted line {LineNumber}: {NewLine}",
+                            change.LineNumber, change.NewLine);
+                    }
+                    break;
+
+                case "delete":
+                    lines.RemoveAt(lineIndex);
+                    _logger.LogDebug("Deleted line {LineNumber}: {OldLine}",
+                        change.LineNumber, change.OriginalLine);
+                    break;
+
+                default:
+                    _logger.LogWarning("Unknown change type: {ChangeType}", change.ChangeType);
+                    break;
+            }
+        }
+
+        return string.Join(Environment.NewLine, lines);
     }
 
     private string BuildPRBody(OrchestrationResult orchestrationResult, AutoFixResult fixResult)
@@ -383,6 +519,19 @@ public class AutoFixService : IAutoFixService
         foreach (var change in fixResult.FileChanges)
         {
             body.AppendLine($"- **{change.FilePath}** ({change.ChangeType}): {change.ChangeReason}");
+
+            // Show line changes if available
+            if (change.LineChanges != null && change.LineChanges.Count > 0)
+            {
+                foreach (var lineChange in change.LineChanges.Take(10))
+                {
+                    body.AppendLine($"  - Line {lineChange.LineNumber}: `{lineChange.OriginalLine}` → `{lineChange.NewLine}`");
+                }
+                if (change.LineChanges.Count > 10)
+                {
+                    body.AppendLine($"  - _(and {change.LineChanges.Count - 10} more changes)_");
+                }
+            }
         }
         body.AppendLine();
         body.AppendLine("---");

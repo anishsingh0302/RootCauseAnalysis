@@ -67,9 +67,14 @@ public class FileChange
     public FileChangeType ChangeType { get; set; }
 
     /// <summary>
-    /// New content of the file (for create/modify)
+    /// New content of the file (for create/modify) - use this OR LineChanges, not both
     /// </summary>
     public string? NewContent { get; set; }
+
+    /// <summary>
+    /// Line-based changes (more efficient for large files) - use this OR NewContent, not both
+    /// </summary>
+    public List<LineChange>? LineChanges { get; set; }
 
     /// <summary>
     /// Original content (for reference)
@@ -80,6 +85,32 @@ public class FileChange
     /// Explanation of why this change fixes the issue
     /// </summary>
     public string? ChangeReason { get; set; }
+}
+
+/// <summary>
+/// Represents a line-based change in a file (more efficient than full content)
+/// </summary>
+public class LineChange
+{
+    /// <summary>
+    /// Line number to change (1-based indexing)
+    /// </summary>
+    public int LineNumber { get; set; }
+
+    /// <summary>
+    /// Original line content (for verification)
+    /// </summary>
+    public string? OriginalLine { get; set; }
+
+    /// <summary>
+    /// New line content (null to delete line)
+    /// </summary>
+    public string? NewLine { get; set; }
+
+    /// <summary>
+    /// Type of change: "replace", "insert", "delete"
+    /// </summary>
+    public string ChangeType { get; set; } = "replace";
 }
 
 /// <summary>

@@ -4,8 +4,8 @@
     Configures environment variables for Agentic Pipeline
 
 .DESCRIPTION
-    This script securely sets GitHub credentials, webhook secrets, and Teams notification URLs
-    as USER-level environment variables for use in tests and development.
+    This script securely sets GitHub credentials, Azure DevOps credentials, webhook secrets,
+    and Teams notification URLs as USER-level environment variables for use in tests and development.
 
 .PARAMETER Token
     Your GitHub Personal Access Token (starts with ghp_ or github_pat_)
@@ -22,14 +22,28 @@
 .PARAMETER TeamsWebhookUrl
     Optional Microsoft Teams incoming webhook URL for failure notifications
 
-.EXAMPLE
-    .\configure-environment.ps1 -Token "ghp_yourtoken" -Owner "anishsingh0302" -Repo "AgenticPipeline"
+.PARAMETER AzureDevOpsPAT
+    Optional Azure DevOps Personal Access Token for fetching build logs
+    Note: Organization and Project names are configured in appsettings.json (not confidential)
 
 .EXAMPLE
-    .\configure-environment.ps1 -Token "ghp_yourtoken" -Owner "anishsingh0302" -Repo "AgenticPipeline" -WebhookSecret "my-secret-123"
+    .\configure-environment.ps1 -Token "ghp_yourtoken" -Owner "anishsingh0302" -Repo "Semantic-Kernel"
 
 .EXAMPLE
-    .\configure-environment.ps1 -Token "ghp_yourtoken" -Owner "anishsingh0302" -Repo "AgenticPipeline" -WebhookSecret "my-secret-123" -TeamsWebhookUrl "https://your-org.webhook.office.com/webhookb2/..."
+    .\configure-environment.ps1 -Token "ghp_yourtoken" -Owner "anishsingh0302" -Repo "Semantic-Kernel" -WebhookSecret "my-secret-123"
+
+.EXAMPLE
+    .\configure-environment.ps1 -Token "ghp_yourtoken" -Owner "anishsingh0302" -Repo "Semantic-Kernel" -AzureDevOpsPAT "your-azure-pat"
+
+.EXAMPLE
+    # Full configuration with all options
+    .\configure-environment.ps1 `
+        -Token "ghp_yourtoken" `
+        -Owner "anishsingh0302" `
+        -Repo "Semantic-Kernel" `
+        -WebhookSecret "my-secret-123" `
+        -TeamsWebhookUrl "https://your-org.webhook.office.com/webhookb2/..." `
+        -AzureDevOpsPAT "your-azure-pat"
 #>
 
 param(
@@ -46,7 +60,10 @@ param(
     [string]$WebhookSecret = "",
 
     [Parameter(Mandatory=$false)]
-    [string]$TeamsWebhookUrl = ""
+    [string]$TeamsWebhookUrl = "",
+
+    [Parameter(Mandatory=$false)]
+    [string]$AzureDevOpsPAT = ""
 )
 
 Write-Host "============================================================" -ForegroundColor Cyan
@@ -89,6 +106,11 @@ try {
         [Environment]::SetEnvironmentVariable("Notifications__TeamsWebhookUrl", $TeamsWebhookUrl, "User")
     }
 
+    # Set Azure DevOps PAT if provided
+    if (-not [string]::IsNullOrWhiteSpace($AzureDevOpsPAT)) {
+        [Environment]::SetEnvironmentVariable("AzureDevOps__PersonalAccessToken", $AzureDevOpsPAT, "User")
+    }
+
     # For Tests (simple format)
     [Environment]::SetEnvironmentVariable("GITHUB_PAT", $Token, "User")
     [Environment]::SetEnvironmentVariable("GITHUB_OWNER", $Owner, "User")
@@ -112,6 +134,11 @@ try {
         $env:Notifications__TeamsWebhookUrl = $TeamsWebhookUrl
     }
 
+    # Set Azure DevOps PAT for current session if provided
+    if (-not [string]::IsNullOrWhiteSpace($AzureDevOpsPAT)) {
+        $env:AzureDevOps__PersonalAccessToken = $AzureDevOpsPAT
+    }
+
     Write-Host "Environment variables set successfully!" -ForegroundColor Green
     Write-Host ""
     Write-Host "GitHub Configuration:" -ForegroundColor Cyan
@@ -123,6 +150,17 @@ try {
         Write-Host "  GitHub__WebhookSecret       = $maskedSecret" -ForegroundColor White
     } else {
         Write-Host "  GitHub__WebhookSecret       = (not set)" -ForegroundColor Gray
+    }
+    Write-Host ""
+
+    Write-Host "Azure DevOps Configuration:" -ForegroundColor Cyan
+    if (-not [string]::IsNullOrWhiteSpace($AzureDevOpsPAT)) {
+        $maskedAzurePAT = if ($AzureDevOpsPAT.Length -gt 15) { "$($AzureDevOpsPAT.Substring(0, 15))..." } else { "***" }
+        Write-Host "  AzureDevOps__PersonalAccessToken = $maskedAzurePAT" -ForegroundColor White
+        Write-Host "  (Organization and Project are configured in appsettings.json)" -ForegroundColor Gray
+    } else {
+        Write-Host "  AzureDevOps__PersonalAccessToken = (not set)" -ForegroundColor Gray
+        Write-Host "  Note: Azure DevOps integration requires PAT to be set" -ForegroundColor Yellow
     }
     Write-Host ""
 

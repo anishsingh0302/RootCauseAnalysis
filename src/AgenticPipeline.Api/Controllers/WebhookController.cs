@@ -17,6 +17,7 @@ public class WebhookController : ControllerBase
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly WebhookVerificationService _verificationService;
     private readonly GitHubSettings _gitHubSettings;
+    private readonly AzureDevOpsSettings _azureDevOpsSettings;
     private readonly NotificationSettings _notificationSettings;
     private readonly ILogger<WebhookController> _logger;
 
@@ -24,12 +25,14 @@ public class WebhookController : ControllerBase
         IServiceScopeFactory scopeFactory,
         WebhookVerificationService verificationService,
         IOptions<GitHubSettings> gitHubSettings,
+        IOptions<AzureDevOpsSettings> azureDevOpsSettings,
         IOptions<NotificationSettings> notificationSettings,
         ILogger<WebhookController> logger)
     {
         _scopeFactory = scopeFactory;
         _verificationService = verificationService;
         _gitHubSettings = gitHubSettings.Value;
+        _azureDevOpsSettings = azureDevOpsSettings.Value;
         _notificationSettings = notificationSettings.Value;
         _logger = logger;
     }
@@ -371,6 +374,223 @@ public class WebhookController : ControllerBase
     }
 
     /// <summary>
+    /// Receives Azure DevOps Service Hook webhooks for build failures
+    /// </summary>
+    /// <param name="payload">Azure DevOps webhook payload</param>
+    /// <returns>Acknowledgment response</returns>
+    [HttpPost("azuredevops")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ReceiveAzureDevOpsWebhook([FromBody] AzureDevOpsWebhookPayload payload)
+    {
+        try
+        {
+            _logger.LogInformation(
+                "Received Azure DevOps webhook: EventType={EventType}, BuildId={BuildId}, Result={Result}",
+                payload.EventType,
+                payload.Resource?.Id,
+                payload.Resource?.Result);
+
+            // Only process build.complete events
+            if (payload.EventType != "build.complete")
+            {
+                _logger.LogInformation("Ignoring non-build.complete event: {EventType}", payload.EventType);
+                return Ok(new
+                {
+                    Status = "Ignored",
+                    Reason = "Not a build.complete event",
+                    EventType = payload.EventType
+                });
+            }
+
+            if (payload.Resource == null)
+            {
+                _logger.LogWarning("Webhook payload missing resource information");
+                return BadRequest(new { Error = "Missing resource information" });
+            }
+
+            // Only process failed or partially succeeded builds
+            if (payload.Resource.Result != "failed" && payload.Resource.Result != "partiallySucceeded")
+            {
+                _logger.LogInformation(
+                    "Ignoring build with result: {Result} (BuildId: {BuildId})",
+                    payload.Resource.Result,
+                    payload.Resource.Id);
+                return Ok(new
+                {
+                    Status = "Ignored",
+                    Reason = $"Build result: {payload.Resource.Result}",
+                    BuildId = payload.Resource.Id,
+                    Result = payload.Resource.Result
+                });
+            }
+
+            _logger.LogInformation(
+                "Processing Azure DevOps build failure: BuildId={BuildId}, BuildNumber={BuildNumber}",
+                payload.Resource.Id,
+                payload.Resource.BuildNumber);
+
+            // Process in background (fire-and-forget)
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    using var scope = _scopeFactory.CreateScope();
+                    await ProcessAzureDevOpsBuildFailureAsync(payload, scope.ServiceProvider);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error processing Azure DevOps webhook asynchronously");
+                }
+            });
+
+            return Ok(new
+            {
+                Status = "Accepted",
+                BuildId = payload.Resource.Id,
+                BuildNumber = payload.Resource.BuildNumber,
+                Message = "Build failure analysis queued"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing Azure DevOps webhook");
+            return StatusCode(500, new { Error = "Internal server error", Message = ex.Message });
+        }
+    }
+
+    private async Task ProcessAzureDevOpsBuildFailureAsync(
+        AzureDevOpsWebhookPayload payload,
+        IServiceProvider serviceProvider)
+    {
+        try
+        {
+            if (payload.Resource == null || payload.ResourceContainers?.Project == null)
+            {
+                _logger.LogWarning("Payload missing required resource or project information");
+                return;
+            }
+
+            // Resolve services from the scoped service provider
+            var orchestrator = serviceProvider.GetService<IPipelineOrchestrator>();
+            var azureDevOpsLogService = serviceProvider.GetService<AzureDevOpsLogService>();
+            var teamsService = serviceProvider.GetService<TeamsNotificationService>();
+            var githubCommentService = serviceProvider.GetService<GitHubCommentService>();
+            var autoFixService = serviceProvider.GetService<IAutoFixService>();
+
+            if (orchestrator == null || azureDevOpsLogService == null)
+            {
+                _logger.LogWarning("Orchestrator or Azure DevOps log service not configured");
+                return;
+            }
+
+            // Extract project name from resource containers
+            var projectId = payload.ResourceContainers.Project.Id;
+
+            // Get build info to extract repository details
+            var buildInfo = await azureDevOpsLogService.GetBuildInfoAsync(
+                _azureDevOpsSettings.Organization ?? "",
+                _azureDevOpsSettings.DefaultProject ?? "",
+                payload.Resource.Id);
+
+            string githubOwner = "";
+            string githubRepo = "";
+
+            // Extract GitHub repo information from build
+            if (buildInfo?.Repository != null && buildInfo.Repository.Type == "GitHub")
+            {
+                // Repository URL format: https://github.com/owner/repo
+                var repoUrl = buildInfo.Repository.Url;
+                if (!string.IsNullOrEmpty(repoUrl))
+                {
+                    var parts = repoUrl.TrimEnd('/').Split('/');
+                    if (parts.Length >= 2)
+                    {
+                        githubRepo = parts[^1].Replace(".git", "");
+                        githubOwner = parts[^2];
+                    }
+                }
+            }
+
+            _logger.LogInformation(
+                "Processing Azure DevOps build failure: BuildId={BuildId}, GitHub={Owner}/{Repo}",
+                payload.Resource.Id,
+                githubOwner,
+                githubRepo);
+
+            // Fetch build logs
+            var logs = await azureDevOpsLogService.FetchBuildLogsAsync(
+                _azureDevOpsSettings.Organization ?? "",
+                _azureDevOpsSettings.DefaultProject ?? "",
+                payload.Resource.Id);
+
+            if (string.IsNullOrWhiteSpace(logs))
+            {
+                _logger.LogWarning("No logs found for Azure DevOps build {BuildId}", payload.Resource.Id);
+                return;
+            }
+
+            // Create orchestration request
+            var request = new OrchestrationRequest
+            {
+                LogContent = logs,
+                GitHubOwner = githubOwner,
+                GitHubRepo = githubRepo,
+                FailureTimestamp = payload.Resource.FinishTime ?? DateTime.UtcNow,
+                CommitLookbackDays = 7,
+                SimilarFailuresCount = 5,
+                MinSimilarity = 0.7f,
+                EnablePatternDetection = true,
+                EnableCommitAnalysis = !string.IsNullOrEmpty(githubOwner), // Only if GitHub repo
+                Source = "Azure DevOps Service Hook",
+                Metadata = new Dictionary<string, string>
+                {
+                    ["BuildId"] = payload.Resource.Id.ToString(),
+                    ["BuildNumber"] = payload.Resource.BuildNumber ?? "",
+                    ["BuildDefinition"] = payload.Resource.Definition?.Name ?? "",
+                    ["BuildUrl"] = payload.Resource.Url ?? "",
+                    ["SourceBranch"] = buildInfo?.SourceBranch ?? "",
+                    ["SourceVersion"] = buildInfo?.SourceVersion ?? ""
+                }
+            };
+
+            // Execute orchestration
+            var result = await orchestrator.ExecuteAsync(request, CancellationToken.None);
+
+            _logger.LogInformation(
+                "Azure DevOps build analysis completed: OrchestrationId={OrchestrationId}, Status={Status}",
+                result.OrchestrationId,
+                result.Status);
+
+            // Create fake GitHub payload for notification compatibility
+            var fakeGitHubPayload = new GitHubWebhookPayload
+            {
+                Repository = new Repository
+                {
+                    Name = githubRepo,
+                    FullName = $"{githubOwner}/{githubRepo}",
+                    Owner = new Owner { Login = githubOwner }
+                }
+            };
+
+            // Send notifications
+            await SendNotificationsAsync(
+                fakeGitHubPayload,
+                result,
+                teamsService,
+                githubCommentService,
+                autoFixService);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Error processing Azure DevOps build failure for build {BuildId}",
+                payload.Resource?.Id);
+        }
+    }
+
+    /// <summary>
     /// Test endpoint to verify webhook configuration
     /// </summary>
     [HttpGet("test")]
@@ -378,15 +598,25 @@ public class WebhookController : ControllerBase
     public IActionResult TestWebhook([FromServices] IPipelineOrchestrator? orchestrator,
         [FromServices] GitHubActionsLogService? logService,
         [FromServices] TeamsNotificationService? teamsService,
-        [FromServices] GitHubCommentService? githubCommentService)
+        [FromServices] GitHubCommentService? githubCommentService,
+        [FromServices] AzureDevOpsLogService? azureDevOpsLogService)
     {
         return Ok(new
         {
             Status = "Webhook endpoint is reachable",
             Timestamp = DateTime.UtcNow,
-            SignatureVerificationEnabled = !string.IsNullOrEmpty(_gitHubSettings.WebhookSecret),
+            GitHub = new
+            {
+                SignatureVerificationEnabled = !string.IsNullOrEmpty(_gitHubSettings.WebhookSecret),
+                LogServiceConfigured = logService != null
+            },
+            AzureDevOps = new
+            {
+                Configured = !string.IsNullOrEmpty(_azureDevOpsSettings.Organization),
+                LogServiceConfigured = azureDevOpsLogService != null,
+                Organization = _azureDevOpsSettings.Organization
+            },
             OrchestratorConfigured = orchestrator != null,
-            LogServiceConfigured = logService != null,
             TeamsNotificationConfigured = !string.IsNullOrEmpty(_notificationSettings.TeamsWebhookUrl),
             GitHubCommentServiceConfigured = githubCommentService != null
         });
