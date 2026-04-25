@@ -2,7 +2,7 @@
 
 This is a simple console app to verify your AWS Bedrock connection with Claude models before starting the main project.
 
-## ✅ Connection Status: SUCCESSFUL
+##  Connection Status: SUCCESSFUL
 
 **Last Test:** 2026-04-01
 **Model Used:** `us.anthropic.claude-sonnet-4-6` (Claude Sonnet 4-6 via inference profile)
@@ -92,7 +92,7 @@ The region is shown in the **top-right corner** of the AWS Console (next to your
    - **Access Key ID** - Example: `AKIAIOSFODNN7EXAMPLE`
    - **Secret Access Key** - Example: `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY`
 
-   ⚠️ **SAVE BOTH IMMEDIATELY!** You can only see the Secret Key once!
+   ️ **SAVE BOTH IMMEDIATELY!** You can only see the Secret Key once!
 
 7. Click **Download .csv file** or copy both values to a safe place
 8. Click **Done**
@@ -115,8 +115,8 @@ The region is shown in the **top-right corner** of the AWS Console (next to your
 4. Click **Enable specific models** or **Manage model access**
 5. Find **Anthropic** section
 6. Check the box next to:
-   - ✅ **Claude Sonnet 4.5**
-   - ✅ **Claude Opus 4.6** (optional)
+   -  **Claude Sonnet 4.5**
+   -  **Claude Opus 4.6** (optional)
 7. Click **Request model access** or **Save changes**
 8. Wait for status to show **"Access granted"** (usually instant)
 
@@ -151,7 +151,7 @@ The region is shown in the **top-right corner** of the AWS Console (next to your
 
 If successful, you should see:
 ```
-✅ SUCCESS! AWS Bedrock connection is working!
+ SUCCESS! AWS Bedrock connection is working!
 ```
 
 ## Common Issues

@@ -4,17 +4,17 @@ Complete setup guide for configuring GitHub and Azure DevOps credentials for the
 
 ---
 
-## 📋 Overview
+##  Overview
 
 This guide covers:
-- ✅ GitHub Personal Access Token (for commit analysis and auto-fix PRs)
-- ✅ Azure DevOps Personal Access Token (for fetching build logs)
-- ✅ Teams Webhook URL (for notifications)
-- ✅ What goes in appsettings.json vs environment variables
+-  GitHub Personal Access Token (for commit analysis and auto-fix PRs)
+-  Azure DevOps Personal Access Token (for fetching build logs)
+-  Teams Webhook URL (for notifications)
+-  What goes in appsettings.json vs environment variables
 
 ---
 
-## 🔐 Security Model
+##  Security Model
 
 ### Confidential (Environment Variables)
 - Personal Access Tokens (PATs)
@@ -29,7 +29,7 @@ This guide covers:
 
 ---
 
-## 🚀 Quick Setup
+##  Quick Setup
 
 ### Step 1: Update appsettings.json (Non-Confidential)
 
@@ -39,14 +39,14 @@ Edit: `src/AgenticPipeline.Api/appsettings.json`
 {
   "GitHub": {
     "PersonalAccessToken": "",  // LEAVE EMPTY
-    "DefaultOwner": "anishsingh0302",  // ✅ SET YOUR USERNAME
-    "DefaultRepo": "Semantic-Kernel",  // ✅ SET YOUR REPO
+    "DefaultOwner": "anishsingh0302",  //  SET YOUR USERNAME
+    "DefaultRepo": "Semantic-Kernel",  //  SET YOUR REPO
     "WebhookSecret": ""  // LEAVE EMPTY
   },
   "AzureDevOps": {
-    "Organization": "your-org-name",  // ✅ SET YOUR ORG NAME
+    "Organization": "your-org-name",  //  SET YOUR ORG NAME
     "PersonalAccessToken": "",  // LEAVE EMPTY
-    "DefaultProject": "Semantic-Kernel",  // ✅ SET YOUR PROJECT
+    "DefaultProject": "Semantic-Kernel",  //  SET YOUR PROJECT
     "ApiVersion": "7.1-preview.7"
   }
 }
@@ -59,7 +59,7 @@ Edit: `src/AgenticPipeline.Api/appsettings.json`
 2. Click: **Generate new token (classic)**
 3. Name: `Agentic Pipeline`
 4. Expiration: 90 days
-5. Scopes: ✅ `repo`, ✅ `workflow`
+5. Scopes:  `repo`,  `workflow`
 6. Click **Generate token**
 7. **COPY THE TOKEN** (starts with `ghp_`)
 
@@ -68,7 +68,7 @@ Edit: `src/AgenticPipeline.Api/appsettings.json`
 2. Click: **+ New Token**
 3. Name: `Agentic Pipeline`
 4. Expiration: 90 days
-5. Scopes: ✅ **Build (Read)**, ✅ **Code (Read)**
+5. Scopes:  **Build (Read)**,  **Code (Read)**
 6. Click **Create**
 7. **COPY THE TOKEN**
 
@@ -120,7 +120,7 @@ curl http://localhost:5000/api/webhook/test
 
 ---
 
-## 📝 Environment Variables Reference
+##  Environment Variables Reference
 
 ### Set by configure-environment.ps1:
 
@@ -142,7 +142,7 @@ curl http://localhost:5000/api/webhook/test
 
 ---
 
-## 🔧 Manual Setup (Alternative)
+##  Manual Setup (Alternative)
 
 If you prefer not to use the script:
 
@@ -162,7 +162,7 @@ $env:AzureDevOps__PersonalAccessToken = "your_azure_pat"
 
 ---
 
-## 📊 Configuration Checklist
+##  Configuration Checklist
 
 ### appsettings.json
 - [ ] Set `GitHub.DefaultOwner` to your username
@@ -183,16 +183,16 @@ $env:AzureDevOps__PersonalAccessToken = "your_azure_pat"
 
 ---
 
-## 🔒 Security Best Practices
+##  Security Best Practices
 
-### ✅ DO:
+###  DO:
 - Store tokens in environment variables
 - Set token expiration dates (90 days)
 - Revoke tokens immediately if exposed
 - Use different tokens for different environments
 - Keep appsettings.json in version control (no secrets!)
 
-### ❌ DON'T:
+###  DON'T:
 - Put tokens in `appsettings.json`
 - Commit tokens to git
 - Share tokens with others
@@ -253,7 +253,7 @@ Invoke-RestMethod -Uri "https://dev.azure.com/$org/_apis/projects?api-version=7.
 
 ---
 
-## 🧪 Testing Your Setup
+##  Testing Your Setup
 
 ### Test GitHub Integration
 ```powershell
@@ -281,7 +281,7 @@ Expected response:
 
 ---
 
-## 📚 Additional Resources
+##  Additional Resources
 
 - [GitHub PAT Documentation](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
 - [Azure DevOps PAT Documentation](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate)

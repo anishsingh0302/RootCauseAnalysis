@@ -1,94 +1,94 @@
 # Scripts Directory
 
-All PowerShell and Bash scripts for the project.
+**Essential scripts for configuring and running the Agentic Pipeline.**
 
 ---
 
-## 📁 Structure
+##  Structure
 
 ```
 scripts/
-├── aws/        # AWS credential and setup scripts
-└── utils/      # Utility and testing scripts
+├── aws/                  # AWS credential setup (ESSENTIAL)
+│   └── set-sso-creds-persistent.ps1
+├── configuration/        # GitHub & Azure DevOps setup (ESSENTIAL)
+│   ├── configure-environment.ps1
+│   └── README.md
+└── utils/               # Utilities
+    └── test-env.ps1
+
+Note: Testing and legacy scripts are archived in docs/archive/scripts/
 ```
 
 ---
 
-## 🔐 AWS Scripts (`aws/`)
+##  Essential Scripts
 
-### set-sso-creds-persistent.ps1 ⭐ **[RECOMMENDED]**
-**Purpose:** Extracts AWS SSO credentials and sets them as USER-level environment variables
+These scripts are required to run the project:
+
+### 1. AWS SSO Credentials Setup
+
+**Script:** `aws/set-sso-creds-persistent.ps1`
+
+**Purpose:** Extract AWS SSO credentials and set persistent environment variables for Bedrock access
 
 **Usage:**
 ```powershell
-.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "XXXXXXXXX" -Region "us-west-2"
+.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "YourProfile" -Region "us-west-2"
 ```
 
 **Features:**
-- Sets persistent USER-level environment variables
+- Sets USER-level environment variables (persist across sessions)
 - Automatically launches Visual Studio with the solution
-- Credentials available system-wide until expiration
+- Credentials available system-wide until expiration (8-12 hours)
 - Best for development with Visual Studio
 
 **When to use:**
 - Starting a new development session
-- After SSO token expiration (8-12 hours)
+- After SSO token expiration
 - Before running the API from Visual Studio
+
+**Documentation:** See [AWS Setup Guide](../docs/archive/setup/AWS_Setup_Guide.md)
 
 ---
 
-### set-sso-creds.ps1
-**Purpose:** Extracts AWS SSO credentials and sets them as session environment variables
+### 2. GitHub & Azure DevOps Configuration
+
+**Script:** `configuration/configure-environment.ps1`
+
+**Purpose:** Configure GitHub and Azure DevOps Personal Access Tokens
 
 **Usage:**
 ```powershell
-.\scripts\aws\set-sso-creds.ps1 -ProfileName "XXXXXXXXX" -Region "us-west-2"
+.\scripts\configuration\configure-environment.ps1 `
+    -Token "ghp_your_github_token" `
+    -AzureDevOpsPAT "your_azure_devops_pat" `
+    -Owner "your-github-username" `
+    -Repo "your-repo-name"
 ```
 
 **Features:**
-- Sets environment variables for current PowerShell session only
-- Does not persist across windows
-- Lighter weight, no VS launch
+- Sets GitHub Personal Access Token (for commit analysis and auto-fix PRs)
+- Sets Azure DevOps Personal Access Token (for fetching build logs)
+- Configures repository defaults
+- Optional: Teams webhook URL for notifications
 
-**When to use:**
-- Quick credential refresh in current session
-- Running from command line only
-- Don't need Visual Studio
+**Required for:**
+- GitHub commit analysis
+- Azure DevOps build log fetching
+- Auto-fix PR creation
+- Teams notifications (optional)
 
----
-
-### aws-helper.ps1 / aws-helper.sh
-**Purpose:** Helper scripts for common AWS operations
-
-**Usage:**
-```powershell
-# PowerShell
-.\scripts\aws\aws-helper.ps1 <command>
-
-# Bash
-./scripts/aws/aws-helper.sh <command>
-```
-
-**Commands:**
-- `info` - Show AWS identity and username
-- `list-keys` - List your access keys
-- `create-key` - Create a new access key
-- `check-bedrock` - Check Bedrock model access
-- `verify-all` - Run complete verification
-
-**Examples:**
-```powershell
-.\scripts\aws\aws-helper.ps1 info
-.\scripts\aws\aws-helper.ps1 check-bedrock
-.\scripts\aws\aws-helper.ps1 verify-all
-```
+**Documentation:** See [Configuration README](configuration/README.md)
 
 ---
 
-## 🛠️ Utility Scripts (`utils/`)
+## ️ Utility Scripts
 
 ### test-env.ps1
-**Purpose:** Verifies that AWS environment variables are set correctly
+
+**Location:** `utils/test-env.ps1`
+
+**Purpose:** Verify AWS environment variables are set correctly
 
 **Usage:**
 ```powershell
@@ -101,97 +101,187 @@ scripts/
 AWS_ACCESS_KEY_ID:     ASIA2KX4BX...
 AWS_SECRET_ACCESS_KEY: ****
 AWS_SESSION_TOKEN:     SET
-AWS_PROFILE:           XXXXXXXXX
+AWS_PROFILE:           YourProfile
 AWS_REGION:            us-west-2
 ```
 
 **When to use:**
-- After running set-sso-creds scripts
-- Debugging credential issues
+- After running AWS credential scripts
+- Debugging authentication issues
 - Verifying environment before running API
 
 ---
 
-## 🚀 Quick Start Workflow
+##  Archived Scripts
+
+Historical and testing scripts have been moved to `docs/archive/scripts/`:
+
+### Testing Scripts (`docs/archive/scripts/testing/`)
+Component-specific test scripts:
+- `test-webhook.ps1` - Test webhook endpoints
+- `test-github-logs.ps1` - Test GitHub Actions log fetching
+- `test-azure-logs.ps1` - Test Azure DevOps log fetching
+- `test-autofix.ps1` - Test auto-fix generation
+- `test-teams-notification.ps1` - Test Teams notifications
+- `run-embedding-tests.ps1` - Test embedding generation
+- `setup-test-scenario.ps1` - Set up test failure scenarios
+
+### Utility Scripts (`docs/archive/scripts/utilities/`)
+- `Problem_trobleshoot.ps1` - Troubleshooting helper
+
+### Legacy AWS Scripts (`docs/archive/scripts/aws-legacy/`)
+- `set-sso-creds.ps1` - Session-only credential setup (non-persistent)
+- `get-sso-creds.ps1` - Retrieve credentials from AWS SSO
+- `aws-helper.ps1` / `aws-helper.sh` - AWS CLI helpers
+
+See **[Archived Scripts README](../docs/archive/scripts/README.md)** for complete archive documentation.
+
+---
+
+##  Quick Start Workflow
 
 ### For Visual Studio Development:
-```powershell
-# 1. Set credentials (launches VS automatically)
-.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "XXXXXXXXX" -Region "us-west-2"
 
-# 2. Press F5 in Visual Studio to run the API
+```powershell
+# 1. Set AWS credentials (launches VS automatically)
+.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "YourProfile" -Region "us-west-2"
+
+# 2. Configure GitHub and Azure DevOps tokens (one-time setup)
+.\scripts\configuration\configure-environment.ps1 `
+    -Token "ghp_XXX" `
+    -AzureDevOpsPAT "XXX"
+
+# 3. Press F5 in Visual Studio to run the API
 ```
 
 ### For Command Line Development:
-```powershell
-# 1. Set credentials for current session
-.\scripts\aws\set-sso-creds.ps1 -ProfileName "XXXXXXXXX" -Region "us-west-2"
 
-# 2. Verify environment
+```powershell
+# 1. Set AWS credentials
+.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "YourProfile" -Region "us-west-2"
+
+# 2. Configure GitHub and Azure DevOps tokens (one-time setup)
+.\scripts\configuration\configure-environment.ps1 `
+    -Token "ghp_XXX" `
+    -AzureDevOpsPAT "XXX"
+
+# 3. Verify environment
 .\scripts\utils\test-env.ps1
 
-# 3. Run the API
+# 4. Run the API
 cd src\AgenticPipeline.Api
 dotnet run
 ```
 
 ---
 
-## ⚠️ Important Notes
+## ️ Important Notes
 
 ### Credential Expiration
-- SSO tokens expire after **8-12 hours**
-- Re-run the credential script when you see authentication errors
-- Error indicators: "ExpiredToken", "InvalidToken", "Unable to get IAM security credentials"
+- **AWS SSO tokens** expire after 8-12 hours
+- **GitHub PAT** and **Azure DevOps PAT** expire based on your settings (typically 90 days)
+- Re-run credential scripts when you see authentication errors
+- Error indicators: "ExpiredToken", "InvalidToken", "Unable to get IAM security credentials", "401 Unauthorized"
 
-### Script Locations
-- **All scripts moved to `scripts/` folder** (as of 2026-04-01)
-- Old locations no longer valid
-- Update any bookmarks or shortcuts
-
-### Persistent vs Session
+### Persistent vs Session Credentials
 - **Persistent** (`set-sso-creds-persistent.ps1`):
-  - ✅ Works across all applications
-  - ✅ Works in Visual Studio
-  - ✅ Persists after closing PowerShell
-  - ❌ Need to clear manually (System → Environment Variables)
+  -  Works across all applications
+  -  Works in Visual Studio
+  -  Persists after closing PowerShell
+  -  Need to clear manually (System → Environment Variables)
 
-- **Session** (`set-sso-creds.ps1`):
-  - ✅ Auto-clears when closing PowerShell
-  - ✅ Doesn't affect other windows
-  - ❌ Only works in current session
-  - ❌ Need to re-run for each new window
+- **Session** (archived: `set-sso-creds.ps1`):
+  -  Auto-clears when closing PowerShell
+  -  Doesn't affect other windows
+  -  Only works in current session
+  -  Need to re-run for each new window
+
+### Security Best Practices
+-  Store PATs in environment variables (done by configure-environment.ps1)
+-  Never commit tokens to git
+-  Set token expiration dates (90 days recommended)
+-  Revoke tokens immediately if exposed
+-  Don't put tokens in appsettings.json
+-  Don't share tokens with others
 
 ---
 
-## 🔍 Troubleshooting
+##  Troubleshooting
 
 ### "The term 'aws' is not recognized"
-Install AWS CLI: https://aws.amazon.com/cli/
+**Solution:** Install AWS CLI: https://aws.amazon.com/cli/
 
 ### "The config profile could not be found"
-Check your profile name in `~/.aws/config` - it might be lowercase (`XXXXXXXXX` not `XXXXXXXXX`)
+**Solution:** Check your profile name in `~/.aws/config`
 
 ### "Script is not digitally signed"
-Run PowerShell as Administrator and execute:
+**Solution:** Run PowerShell as Administrator:
 ```powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 
 ### Credentials not working in API
+**Solution:**
 1. Verify with `.\scripts\utils\test-env.ps1`
-2. If not set, re-run credential script
-3. Make sure you're in the **same PowerShell session** (for session-based) or restart Visual Studio (for persistent)
+2. If not set, re-run credential scripts
+3. Restart Visual Studio if using persistent credentials
+
+### "401 Unauthorized" from Azure DevOps
+**Solution:**
+1. Check PAT hasn't expired in Azure DevOps settings
+2. Verify PAT has **Build (Read)** and **Code (Read)** scopes
+3. Re-run `configure-environment.ps1` with updated PAT
+
+### "401 Unauthorized" from GitHub
+**Solution:**
+1. Check token hasn't expired: https://github.com/settings/tokens
+2. Verify token has `repo` and `workflow` scopes
+3. Re-run `configure-environment.ps1` with updated token
 
 ---
 
-## 📚 Related Documentation
+##  Related Documentation
 
-- [AWS Setup Guide](../docs/setup/AWS_Setup_Guide.md) - Complete AWS configuration
-- [Quick Reference](../docs/setup/QUICK_REFERENCE.md) - Command cheat sheet
-- [Phase 1 Guide](../docs/guides/PHASE1_COMPLETE.md) - Testing the API
+### Setup Guides
+- **[AWS Setup Guide](../docs/archive/setup/AWS_Setup_Guide.md)** - Complete AWS Bedrock configuration
+- **[Configuration README](configuration/README.md)** - Detailed token setup guide
+- **[Quick Reference](../docs/archive/setup/QUICK_REFERENCE.md)** - Command cheat sheet
+
+### Integration Guides
+- **[Azure DevOps Integration](../docs/archive/guides/Azure_DevOps_Integration_Guide.md)** - Full integration setup
+- **[Azure DevOps Webhook Setup](../docs/archive/guides/Azure_DevOps_Webhook_Setup.md)** - Webhook configuration
+
+### Main Documentation
+- **[Documentation Index](../docs/README.md)** - Master table of contents
+- **[Project README](../README.md)** - Project overview
 
 ---
 
-**Last Updated:** 2026-04-01
-**Scripts Version:** 1.0
+##  Script Checklist
+
+### First-Time Setup
+- [ ] Run AWS credential script: `aws/set-sso-creds-persistent.ps1`
+- [ ] Verify credentials: `utils/test-env.ps1`
+- [ ] Create GitHub PAT: https://github.com/settings/tokens
+- [ ] Create Azure DevOps PAT: https://dev.azure.com/YOUR-ORG/_usersSettings/tokens
+- [ ] Run configuration script: `configuration/configure-environment.ps1`
+- [ ] Update appsettings.json with org/repo names
+- [ ] Test API connection
+
+### Daily Workflow
+- [ ] Check if AWS credentials expired (8-12 hours)
+- [ ] Re-run AWS credential script if needed
+- [ ] Verify with `test-env.ps1`
+- [ ] Start API
+
+### Token Renewal (Every 90 days)
+- [ ] Regenerate GitHub PAT
+- [ ] Regenerate Azure DevOps PAT
+- [ ] Run `configure-environment.ps1` with new tokens
+- [ ] Test integrations
+
+---
+
+**Last Updated:** 2026-04-25
+**Scripts Version:** 2.0
+**Project Status:** Production Ready 

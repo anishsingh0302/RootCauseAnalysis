@@ -4,7 +4,7 @@
 
 ---
 
-## 🎯 Purpose
+##  Purpose
 
 This project serves as the **API Gateway** for the Agentic Pipeline Troubleshooter. It:
 
@@ -16,7 +16,7 @@ This project serves as the **API Gateway** for the Agentic Pipeline Troubleshoot
 
 ---
 
-## 🏗️ Architecture Role
+## ️ Architecture Role
 
 ```
 User/CI/CD System
@@ -34,7 +34,7 @@ This project is the **presentation layer** that sits between users and the AI an
 
 ---
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 AgenticPipeline.Api/
@@ -50,7 +50,7 @@ AgenticPipeline.Api/
 
 ---
 
-## 🔑 Key Components
+##  Key Components
 
 ### 1. **Program.cs** - Application Entry Point
 
@@ -221,7 +221,7 @@ public class AnalysisRequest
 
 ---
 
-## 🔄 Request Flow (Detailed)
+##  Request Flow (Detailed)
 
 ### Complete Flow from HTTP Request to Response:
 
@@ -284,7 +284,7 @@ public class AnalysisRequest
 
 ---
 
-## 🔌 Dependencies
+##  Dependencies
 
 ### NuGet Packages:
 - **Microsoft.SemanticKernel** (1.74.0)
@@ -304,7 +304,7 @@ public class AnalysisRequest
 
 ---
 
-## 🚀 How to Run
+##  How to Run
 
 ### From Command Line:
 ```bash
@@ -331,7 +331,7 @@ Open browser to `https://localhost:7xxx` (port varies)
 
 ---
 
-## 🧪 Testing
+##  Testing
 
 ### Using Swagger UI (Easiest):
 1. Start the API
@@ -360,7 +360,7 @@ curl -X POST "https://localhost:7xxx/api/pipeline/analyze" \
 
 ---
 
-## ⚙️ Configuration
+## ️ Configuration
 
 ### AWS Credentials:
 The API needs AWS credentials to call Bedrock. Options:
@@ -388,7 +388,7 @@ When running on AWS (ECS, EC2, Lambda):
 
 ---
 
-## 📊 Logging
+##  Logging
 
 ### Log Levels:
 - **Information**: Request received, analysis completed
@@ -419,13 +419,13 @@ Edit `appsettings.json`:
 
 ---
 
-## 🔐 Security Considerations
+##  Security Considerations
 
 ### Current State (Development):
-- ✅ HTTPS enabled by default
-- ✅ CORS allows all origins (for testing)
-- ⚠️ No authentication/authorization
-- ⚠️ No rate limiting
+-  HTTPS enabled by default
+-  CORS allows all origins (for testing)
+- ️ No authentication/authorization
+- ️ No rate limiting
 
 ### Production Recommendations:
 1. **Add Authentication:**
@@ -455,7 +455,7 @@ Edit `appsettings.json`:
 
 ---
 
-## 📈 Performance
+##  Performance
 
 ### Current Setup:
 - **Singleton services** - One instance per app lifetime
@@ -479,7 +479,7 @@ Edit `appsettings.json`:
 
 ---
 
-## 🐛 Troubleshooting
+##  Troubleshooting
 
 ### API won't start:
 ```
@@ -510,7 +510,7 @@ options.RoutePrefix = string.Empty; // Should be empty
 
 ---
 
-## 🔮 Future Enhancements
+##  Future Enhancements
 
 ### Phase 2+ Features:
 - [ ] Webhook endpoint for CI/CD integration
@@ -522,7 +522,7 @@ options.RoutePrefix = string.Empty; // Should be empty
 
 ---
 
-## 📚 Related Documentation
+##  Related Documentation
 
 - **Project Overview:** `../../README.md`
 - **Claude Service:** `../AgenticPipeline.Infrastructure/Services/ClaudeService.cs`
@@ -531,14 +531,14 @@ options.RoutePrefix = string.Empty; // Should be empty
 
 ---
 
-## 🎯 Summary
+##  Summary
 
 **AgenticPipeline.Api is the gateway that:**
-1. ✅ Receives pipeline failure logs via REST API
-2. ✅ Routes them to AI analysis via RCA Plugin
-3. ✅ Returns structured root cause analysis with recommendations
-4. ✅ Provides interactive documentation (Swagger UI)
-5. ✅ Handles all HTTP concerns (routing, serialization, errors)
+1.  Receives pipeline failure logs via REST API
+2.  Routes them to AI analysis via RCA Plugin
+3.  Returns structured root cause analysis with recommendations
+4.  Provides interactive documentation (Swagger UI)
+5.  Handles all HTTP concerns (routing, serialization, errors)
 
 **Key Strengths:**
 - Clean separation of concerns (API vs Business Logic vs Infrastructure)
@@ -551,4 +551,4 @@ options.RoutePrefix = string.Empty; // Should be empty
 
 **Version:** 1.0.0
 **Last Updated:** 2026-04-01
-**Status:** ✅ Phase 1 Complete
+**Status:**  Phase 1 Complete

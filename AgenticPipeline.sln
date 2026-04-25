@@ -1,7 +1,7 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.4.11605.240 stable
+ VisualStudioVersion = 18.4.11605.240 stable
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
@@ -23,34 +23,109 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentation", "{5CE8E52D-A8AF-340A-4033-B85429601BE7}"
 	ProjectSection(SolutionItems) = preProject
-		README.md = README.md
 		docs\README.md = docs\README.md
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "guides", "guides", "{D1D1D1D1-E2E2-E3E3-E4E4-E5E5E5E5E5E5}"
-	ProjectSection(SolutionItems) = preProject
-		docs\guides\API_Testing_Guide.md = docs\guides\API_Testing_Guide.md
-		docs\guides\PHASE1_COMPLETE.md = docs\guides\PHASE1_COMPLETE.md
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "implementation", "implementation", "{D2D2D2D2-E2E2-E3E3-E4E4-E5E5E5E5E5E5}"
-	ProjectSection(SolutionItems) = preProject
-		docs\implementation\DotNet_Implementation_Plan.md = docs\implementation\DotNet_Implementation_Plan.md
-		docs\implementation\Plan.md = docs\implementation\Plan.md
-		docs\implementation\requirement.md = docs\implementation\requirement.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "setup", "setup", "{D3D3D3D3-E2E2-E3E3-E4E4-E5E5E5E5E5E5}"
 	ProjectSection(SolutionItems) = preProject
-		docs\setup\AWS_Setup_Guide.md = docs\setup\AWS_Setup_Guide.md
-		docs\setup\QUICK_REFERENCE.md = docs\setup\QUICK_REFERENCE.md
+		docs\archive\setup\AWS_Setup_Guide.md = docs\archive\setup\AWS_Setup_Guide.md
+		docs\archive\setup\QUICK_REFERENCE.md = docs\archive\setup\QUICK_REFERENCE.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "guides", "guides", "{D1D1D1D1-E2E2-E3E3-E4E4-E5E5E5E5E5E5}"
+	ProjectSection(SolutionItems) = preProject
+		docs\archive\guides\API_Testing_Guide.md = docs\archive\guides\API_Testing_Guide.md
+		docs\archive\guides\Auto_Fix_PR_Guide.md = docs\archive\guides\Auto_Fix_PR_Guide.md
+		docs\archive\guides\Azure_DevOps_Integration_Guide.md = docs\archive\guides\Azure_DevOps_Integration_Guide.md
+		docs\archive\guides\Azure_DevOps_vs_GitHub_Actions.md = docs\archive\guides\Azure_DevOps_vs_GitHub_Actions.md
+		docs\archive\guides\Azure_DevOps_Webhook_Setup.md = docs\archive\guides\Azure_DevOps_Webhook_Setup.md
+		docs\archive\guides\Pattern_Detection_Explained.md = docs\archive\guides\Pattern_Detection_Explained.md
+		docs\archive\guides\PHASE1_COMPLETE.md = docs\archive\guides\PHASE1_COMPLETE.md
+		docs\archive\guides\Quick_Start_Testing.md = docs\archive\guides\Quick_Start_Testing.md
+		docs\archive\guides\Testing_Guide.md = docs\archive\guides\Testing_Guide.md
+		docs\archive\guides\Usage_Examples.md = docs\archive\guides\Usage_Examples.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "api", "api", "{E1E1E1E1-E2E2-E3E3-E4E4-E5E5E5E5E5E5}"
+	ProjectSection(SolutionItems) = preProject
+		docs\archive\api\Phase3_API_Guide.md = docs\archive\api\Phase3_API_Guide.md
+		docs\archive\api\Phase4_API_Examples.md = docs\archive\api\Phase4_API_Examples.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "testing", "testing", "{E2E2E2E2-E3E3-E4E4-E5E5-E6E6E6E6E6E6}"
+	ProjectSection(SolutionItems) = preProject
+		docs\archive\testing\Auto_Fix_Testing_Guide.md = docs\archive\testing\Auto_Fix_Testing_Guide.md
+		docs\archive\testing\Phases345_Testing_Guide.md = docs\archive\testing\Phases345_Testing_Guide.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "fixes", "fixes", "{E3E3E3E3-E4E4-E5E5-E6E6-E7E7E7E7E7E7}"
+	ProjectSection(SolutionItems) = preProject
+		docs\archive\fixes\AutoFix_Token_Limit_Fix.md = docs\archive\fixes\AutoFix_Token_Limit_Fix.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "archive", "archive", "{F1F1F1F1-F2F2-F3F3-F4F4-F5F5F5F5F5F5}"
+	ProjectSection(SolutionItems) = preProject
+		docs\archive\README.md = docs\archive\README.md
+		docs\archive\START_HERE.md = docs\archive\START_HERE.md
+		docs\archive\ORGANIZATION_SUMMARY.md = docs\archive\ORGANIZATION_SUMMARY.md
+		docs\archive\FINAL_STRUCTURE.md = docs\archive\FINAL_STRUCTURE.md
+		docs\archive\QUICK_SETUP_CHECKLIST.md = docs\archive\QUICK_SETUP_CHECKLIST.md
+		docs\archive\SECURITY_AUDIT.md = docs\archive\SECURITY_AUDIT.md
+		docs\archive\START_HERE_AFTER_RESTART.md = docs\archive\START_HERE_AFTER_RESTART.md
+		docs\archive\TESTING_AUTOFIX.md = docs\archive\TESTING_AUTOFIX.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "implementation", "implementation", "{D2D2D2D2-E2E2-E3E3-E4E4-E5E5E5E5E5E5}"
+	ProjectSection(SolutionItems) = preProject
+		docs\archive\implementation\DotNet_Implementation_Plan.md = docs\archive\implementation\DotNet_Implementation_Plan.md
+		docs\archive\implementation\IMPLEMENTATION_STATUS.md = docs\archive\implementation\IMPLEMENTATION_STATUS.md
+		docs\archive\implementation\Phase3_Implementation_Plan.md = docs\archive\implementation\Phase3_Implementation_Plan.md
+		docs\archive\implementation\Plan.md = docs\archive\implementation\Plan.md
+		docs\archive\implementation\requirement.md = docs\archive\implementation\requirement.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tracking", "tracking", "{D4D4D4D4-E2E2-E3E3-E4E4-E5E5E5E5E5E5}"
 	ProjectSection(SolutionItems) = preProject
-		docs\tracking\Session.md = docs\tracking\Session.md
-		docs\tracking\STATUS.md = docs\tracking\STATUS.md
-		docs\tracking\task.md = docs\tracking\task.md
+		docs\archive\tracking\Phase2_Completion_Report.md = docs\archive\tracking\Phase2_Completion_Report.md
+		docs\archive\tracking\Phase3_Completion_Report.md = docs\archive\tracking\Phase3_Completion_Report.md
+		docs\archive\tracking\Phase4_Completion_Report.md = docs\archive\tracking\Phase4_Completion_Report.md
+		docs\archive\tracking\Phase5_Completion_Report.md = docs\archive\tracking\Phase5_Completion_Report.md
+		docs\archive\tracking\Session.md = docs\archive\tracking\Session.md
+		docs\archive\tracking\Session_14_Quick_Summary.md = docs\archive\tracking\Session_14_Quick_Summary.md
+		docs\archive\tracking\STATUS.md = docs\archive\tracking\STATUS.md
+		docs\archive\tracking\task.md = docs\archive\tracking\task.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "archive-testing", "archive-testing", "{D5D5D5D5-E3E3-E4E4-E5E5-E6E6E6E6E6E6}"
+	ProjectSection(SolutionItems) = preProject
+		docs\archive\testing\Phase3Testing.md = docs\archive\testing\Phase3Testing.md
+		docs\archive\testing\Phase3Testing_similar.md = docs\archive\testing\Phase3Testing_similar.md
+		docs\archive\testing\Test_Results_Phase2.md = docs\archive\testing\Test_Results_Phase2.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "archive-scripts", "archive-scripts", "{F2F2F2F2-F3F3-F4F4-F5F5-F6F6F6F6F6F6}"
+	ProjectSection(SolutionItems) = preProject
+		docs\archive\scripts\README.md = docs\archive\scripts\README.md
+		docs\archive\scripts\MOVED_NOTICE.md = docs\archive\scripts\MOVED_NOTICE.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "archive-scripts-testing", "archive-scripts-testing", "{F3F3F3F3-F4F4-F5F5-F6F6-F7F7F7F7F7F7}"
+	ProjectSection(SolutionItems) = preProject
+		docs\archive\scripts\testing\run-embedding-tests.ps1 = docs\archive\scripts\testing\run-embedding-tests.ps1
+		docs\archive\scripts\testing\setup-test-scenario.ps1 = docs\archive\scripts\testing\setup-test-scenario.ps1
+		docs\archive\scripts\testing\test-autofix.ps1 = docs\archive\scripts\testing\test-autofix.ps1
+		docs\archive\scripts\testing\test-azure-logs.ps1 = docs\archive\scripts\testing\test-azure-logs.ps1
+		docs\archive\scripts\testing\test-github-logs.ps1 = docs\archive\scripts\testing\test-github-logs.ps1
+		docs\archive\scripts\testing\test-teams-notification.ps1 = docs\archive\scripts\testing\test-teams-notification.ps1
+		docs\archive\scripts\testing\test-webhook.ps1 = docs\archive\scripts\testing\test-webhook.ps1
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "archive-scripts-aws-legacy", "archive-scripts-aws-legacy", "{F4F4F4F4-F5F5-F6F6-F7F7-F8F8F8F8F8F8}"
+	ProjectSection(SolutionItems) = preProject
+		docs\archive\scripts\aws-legacy\aws-helper.ps1 = docs\archive\scripts\aws-legacy\aws-helper.ps1
+		docs\archive\scripts\aws-legacy\aws-helper.sh = docs\archive\scripts\aws-legacy\aws-helper.sh
+		docs\archive\scripts\aws-legacy\get-sso-creds.ps1 = docs\archive\scripts\aws-legacy\get-sso-creds.ps1
+		docs\archive\scripts\aws-legacy\set-sso-creds.ps1 = docs\archive\scripts\aws-legacy\set-sso-creds.ps1
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Scripts", "Scripts", "{A1B2C3D4-E5F6-7890-1234-567890ABCDEF}"
@@ -60,11 +135,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Scripts", "Scripts", "{A1B2
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "aws", "aws", "{11111111-2222-3333-4444-555555555555}"
 	ProjectSection(SolutionItems) = preProject
-		scripts\aws\aws-helper.ps1 = scripts\aws\aws-helper.ps1
-		scripts\aws\aws-helper.sh = scripts\aws\aws-helper.sh
-		scripts\aws\get-sso-creds.ps1 = scripts\aws\get-sso-creds.ps1
 		scripts\aws\set-sso-creds-persistent.ps1 = scripts\aws\set-sso-creds-persistent.ps1
-		scripts\aws\set-sso-creds.ps1 = scripts\aws\set-sso-creds.ps1
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "configuration", "configuration", "{33333333-4444-5555-6666-777777777777}"
+	ProjectSection(SolutionItems) = preProject
+		scripts\configuration\configure-environment.ps1 = scripts\configuration\configure-environment.ps1
+		scripts\configuration\README.md = scripts\configuration\README.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "utils", "utils", "{22222222-3333-4444-5555-666666666666}"
@@ -188,11 +265,20 @@ Global
 		{0764CF89-0859-46F9-9A35-935FF84130F4} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{FDD2E7ED-A52B-42F6-952D-D32987599DCC} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{8C583146-683E-4888-B5E8-95CDD9D43A94} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
-		{D1D1D1D1-E2E2-E3E3-E4E4-E5E5E5E5E5E5} = {5CE8E52D-A8AF-340A-4033-B85429601BE7}
-		{D2D2D2D2-E2E2-E3E3-E4E4-E5E5E5E5E5E5} = {5CE8E52D-A8AF-340A-4033-B85429601BE7}
-		{D3D3D3D3-E2E2-E3E3-E4E4-E5E5E5E5E5E5} = {5CE8E52D-A8AF-340A-4033-B85429601BE7}
-		{D4D4D4D4-E2E2-E3E3-E4E4-E5E5E5E5E5E5} = {5CE8E52D-A8AF-340A-4033-B85429601BE7}
+		{F1F1F1F1-F2F2-F3F3-F4F4-F5F5F5F5F5F5} = {5CE8E52D-A8AF-340A-4033-B85429601BE7}
+		{D3D3D3D3-E2E2-E3E3-E4E4-E5E5E5E5E5E5} = {F1F1F1F1-F2F2-F3F3-F4F4-F5F5F5F5F5F5}
+		{D1D1D1D1-E2E2-E3E3-E4E4-E5E5E5E5E5E5} = {F1F1F1F1-F2F2-F3F3-F4F4-F5F5F5F5F5F5}
+		{E1E1E1E1-E2E2-E3E3-E4E4-E5E5E5E5E5E5} = {F1F1F1F1-F2F2-F3F3-F4F4-F5F5F5F5F5F5}
+		{E2E2E2E2-E3E3-E4E4-E5E5-E6E6E6E6E6E6} = {F1F1F1F1-F2F2-F3F3-F4F4-F5F5F5F5F5F5}
+		{E3E3E3E3-E4E4-E5E5-E6E6-E7E7E7E7E7E7} = {F1F1F1F1-F2F2-F3F3-F4F4-F5F5F5F5F5F5}
+		{D2D2D2D2-E2E2-E3E3-E4E4-E5E5E5E5E5E5} = {F1F1F1F1-F2F2-F3F3-F4F4-F5F5F5F5F5F5}
+		{D4D4D4D4-E2E2-E3E3-E4E4-E5E5E5E5E5E5} = {F1F1F1F1-F2F2-F3F3-F4F4-F5F5F5F5F5F5}
+		{D5D5D5D5-E3E3-E4E4-E5E5-E6E6E6E6E6E6} = {F1F1F1F1-F2F2-F3F3-F4F4-F5F5F5F5F5F5}
+		{F2F2F2F2-F3F3-F4F4-F5F5-F6F6F6F6F6F6} = {F1F1F1F1-F2F2-F3F3-F4F4-F5F5F5F5F5F5}
+		{F3F3F3F3-F4F4-F5F5-F6F6-F7F7F7F7F7F7} = {F2F2F2F2-F3F3-F4F4-F5F5-F6F6F6F6F6F6}
+		{F4F4F4F4-F5F5-F6F6-F7F7-F8F8F8F8F8F8} = {F2F2F2F2-F3F3-F4F4-F5F5-F6F6F6F6F6F6}
 		{11111111-2222-3333-4444-555555555555} = {A1B2C3D4-E5F6-7890-1234-567890ABCDEF}
+		{33333333-4444-5555-6666-777777777777} = {A1B2C3D4-E5F6-7890-1234-567890ABCDEF}
 		{22222222-3333-4444-5555-666666666666} = {A1B2C3D4-E5F6-7890-1234-567890ABCDEF}
 		{56E1891B-1B38-4A3A-BC78-52F3CB0F2713} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{A53DC0AE-40EB-498D-B113-6916AD42E10A} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
