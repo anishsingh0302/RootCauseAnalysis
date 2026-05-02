@@ -19,6 +19,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
 		nuget.config = nuget.config
+		README.md = README.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentation", "{5CE8E52D-A8AF-340A-4033-B85429601BE7}"
@@ -126,16 +127,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "archive-scripts-aws-legacy"
 		docs\archive\scripts\aws-legacy\aws-helper.sh = docs\archive\scripts\aws-legacy\aws-helper.sh
 		docs\archive\scripts\aws-legacy\get-sso-creds.ps1 = docs\archive\scripts\aws-legacy\get-sso-creds.ps1
 		docs\archive\scripts\aws-legacy\set-sso-creds.ps1 = docs\archive\scripts\aws-legacy\set-sso-creds.ps1
+		docs\archive\scripts\aws-legacy\set-sso-creds-persistent.ps1 = docs\archive\scripts\aws-legacy\set-sso-creds-persistent.ps1
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Scripts", "Scripts", "{A1B2C3D4-E5F6-7890-1234-567890ABCDEF}"
 	ProjectSection(SolutionItems) = preProject
 		scripts\README.md = scripts\README.md
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "aws", "aws", "{11111111-2222-3333-4444-555555555555}"
-	ProjectSection(SolutionItems) = preProject
-		scripts\aws\set-sso-creds-persistent.ps1 = scripts\aws\set-sso-creds-persistent.ps1
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "configuration", "configuration", "{33333333-4444-5555-6666-777777777777}"
@@ -277,7 +274,6 @@ Global
 		{F2F2F2F2-F3F3-F4F4-F5F5-F6F6F6F6F6F6} = {F1F1F1F1-F2F2-F3F3-F4F4-F5F5F5F5F5F5}
 		{F3F3F3F3-F4F4-F5F5-F6F6-F7F7F7F7F7F7} = {F2F2F2F2-F3F3-F4F4-F5F5-F6F6F6F6F6F6}
 		{F4F4F4F4-F5F5-F6F6-F7F7-F8F8F8F8F8F8} = {F2F2F2F2-F3F3-F4F4-F5F5-F6F6F6F6F6F6}
-		{11111111-2222-3333-4444-555555555555} = {A1B2C3D4-E5F6-7890-1234-567890ABCDEF}
 		{33333333-4444-5555-6666-777777777777} = {A1B2C3D4-E5F6-7890-1234-567890ABCDEF}
 		{22222222-3333-4444-5555-666666666666} = {A1B2C3D4-E5F6-7890-1234-567890ABCDEF}
 		{56E1891B-1B38-4A3A-BC78-52F3CB0F2713} = {0AB3BF05-4346-4AA6-1389-037BE0695223}

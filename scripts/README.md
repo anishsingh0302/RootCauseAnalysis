@@ -8,77 +8,75 @@
 
 ```
 scripts/
-├── aws/                  # AWS credential setup (ESSENTIAL)
-│   └── set-sso-creds-persistent.ps1
-├── configuration/        # GitHub & Azure DevOps setup (ESSENTIAL)
+├── configuration/        # Complete environment setup (ESSENTIAL)
 │   ├── configure-environment.ps1
 │   └── README.md
 └── utils/               # Utilities
     └── test-env.ps1
 
-Note: Testing and legacy scripts are archived in docs/archive/scripts/
+Note: Legacy AWS scripts and testing scripts are archived in docs/archive/scripts/
 ```
 
 ---
 
-##  Essential Scripts
+##  Essential Script
 
-These scripts are required to run the project:
+All configuration has been consolidated into a single script for ease of use.
 
-### 1. AWS SSO Credentials Setup
-
-**Script:** `aws/set-sso-creds-persistent.ps1`
-
-**Purpose:** Extract AWS SSO credentials and set persistent environment variables for Bedrock access
-
-**Usage:**
-```powershell
-.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "YourProfile" -Region "us-west-2"
-```
-
-**Features:**
-- Sets USER-level environment variables (persist across sessions)
-- Automatically launches Visual Studio with the solution
-- Credentials available system-wide until expiration (8-12 hours)
-- Best for development with Visual Studio
-
-**When to use:**
-- Starting a new development session
-- After SSO token expiration
-- Before running the API from Visual Studio
-
-**Documentation:** See [AWS Setup Guide](../docs/archive/setup/AWS_Setup_Guide.md)
-
----
-
-### 2. GitHub & Azure DevOps Configuration
+### Configure Environment (All-in-One Setup)
 
 **Script:** `configuration/configure-environment.ps1`
 
-**Purpose:** Configure GitHub and Azure DevOps Personal Access Tokens
+**Purpose:** Configure AWS credentials, GitHub tokens, Azure DevOps tokens, and Teams notifications
 
 **Usage:**
+
+**Full configuration (recommended):**
 ```powershell
 .\scripts\configuration\configure-environment.ps1 `
     -Token "ghp_your_github_token" `
     -AzureDevOpsPAT "your_azure_devops_pat" `
+    -AWSProfileName "YourAWSProfile" `
+    -AWSRegion "us-west-2" `
     -Owner "your-github-username" `
     -Repo "your-repo-name"
 ```
 
+**Without AWS (if already configured):**
+```powershell
+.\scripts\configuration\configure-environment.ps1 `
+    -Token "ghp_your_github_token" `
+    -AzureDevOpsPAT "your_azure_devops_pat" `
+    -SkipAWS
+```
+
+**Minimal configuration (GitHub only):**
+```powershell
+.\scripts\configuration\configure-environment.ps1 `
+    -Token "ghp_your_github_token"
+```
+
 **Features:**
-- Sets GitHub Personal Access Token (for commit analysis and auto-fix PRs)
-- Sets Azure DevOps Personal Access Token (for fetching build logs)
-- Configures repository defaults
-- Optional: Teams webhook URL for notifications
+- AWS SSO login and credential extraction
+- Sets USER-level environment variables (persist across sessions)
+- GitHub Personal Access Token configuration
+- Azure DevOps Personal Access Token configuration
+- Teams webhook URL configuration (optional)
+- Webhook secret configuration (optional)
+- Credentials available system-wide until expiration
 
-**Required for:**
-- GitHub commit analysis
-- Azure DevOps build log fetching
-- Auto-fix PR creation
-- Teams notifications (optional)
+**What it configures:**
+- AWS credentials for Bedrock access (AWS SSO)
+- GitHub token for commit analysis and auto-fix PRs
+- Azure DevOps PAT for fetching build logs
+- Teams webhook for failure notifications
+- Repository defaults
 
-**Documentation:** See [Configuration README](configuration/README.md)
+**Documentation:**
+- [Configuration README](configuration/README.md)
+- [AWS Setup Guide](../docs/archive/setup/AWS_Setup_Guide.md)
+
+**Note:** Legacy standalone AWS script (`set-sso-creds-persistent.ps1`) has been moved to `docs/archive/scripts/aws-legacy/` and merged into this unified configuration script.
 
 ---
 
@@ -130,6 +128,7 @@ Component-specific test scripts:
 - `Problem_trobleshoot.ps1` - Troubleshooting helper
 
 ### Legacy AWS Scripts (`docs/archive/scripts/aws-legacy/`)
+- `set-sso-creds-persistent.ps1` - OLD standalone AWS setup (merged into configure-environment.ps1)
 - `set-sso-creds.ps1` - Session-only credential setup (non-persistent)
 - `get-sso-creds.ps1` - Retrieve credentials from AWS SSO
 - `aws-helper.ps1` / `aws-helper.sh` - AWS CLI helpers
@@ -140,37 +139,47 @@ See **[Archived Scripts README](../docs/archive/scripts/README.md)** for complet
 
 ##  Quick Start Workflow
 
-### For Visual Studio Development:
+### One-Command Setup (Recommended):
 
 ```powershell
-# 1. Set AWS credentials (launches VS automatically)
-.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "YourProfile" -Region "us-west-2"
-
-# 2. Configure GitHub and Azure DevOps tokens (one-time setup)
+# Configure everything in one command
 .\scripts\configuration\configure-environment.ps1 `
-    -Token "ghp_XXX" `
-    -AzureDevOpsPAT "XXX"
+    -Token "ghp_your_github_token" `
+    -AzureDevOpsPAT "your_azure_pat" `
+    -AWSProfileName "YourAWSProfile" `
+    -AWSRegion "us-west-2"
 
-# 3. Press F5 in Visual Studio to run the API
-```
-
-### For Command Line Development:
-
-```powershell
-# 1. Set AWS credentials
-.\scripts\aws\set-sso-creds-persistent.ps1 -ProfileName "YourProfile" -Region "us-west-2"
-
-# 2. Configure GitHub and Azure DevOps tokens (one-time setup)
-.\scripts\configuration\configure-environment.ps1 `
-    -Token "ghp_XXX" `
-    -AzureDevOpsPAT "XXX"
-
-# 3. Verify environment
-.\scripts\utils\test-env.ps1
-
-# 4. Run the API
+# Run the API
 cd src\AgenticPipeline.Api
 dotnet run
+```
+
+### Separate Steps (If Preferred):
+
+```powershell
+# 1. Configure all credentials (AWS + GitHub + Azure DevOps)
+.\scripts\configuration\configure-environment.ps1 `
+    -Token "ghp_XXX" `
+    -AzureDevOpsPAT "XXX" `
+    -AWSProfileName "YourProfile" `
+    -AWSRegion "us-west-2"
+
+# 2. Verify environment
+.\scripts\utils\test-env.ps1
+
+# 3. Run the API
+cd src\AgenticPipeline.Api
+dotnet run
+```
+
+### Skip AWS Configuration:
+
+```powershell
+# If AWS is already configured separately
+.\scripts\configuration\configure-environment.ps1 `
+    -Token "ghp_XXX" `
+    -AzureDevOpsPAT "XXX" `
+    -SkipAWS
 ```
 
 ---
@@ -183,18 +192,15 @@ dotnet run
 - Re-run credential scripts when you see authentication errors
 - Error indicators: "ExpiredToken", "InvalidToken", "Unable to get IAM security credentials", "401 Unauthorized"
 
-### Persistent vs Session Credentials
-- **Persistent** (`set-sso-creds-persistent.ps1`):
-  -  Works across all applications
-  -  Works in Visual Studio
-  -  Persists after closing PowerShell
-  -  Need to clear manually (System → Environment Variables)
+### Persistent Credentials
+The `configure-environment.ps1` script sets **USER-level** environment variables that:
+-  Work across all applications
+-  Work in Visual Studio
+-  Persist after closing PowerShell
+-  Persist after system reboot
+-  Can be cleared manually (System → Environment Variables)
 
-- **Session** (archived: `set-sso-creds.ps1`):
-  -  Auto-clears when closing PowerShell
-  -  Doesn't affect other windows
-  -  Only works in current session
-  -  Need to re-run for each new window
+**Note:** Legacy session-only credential scripts (`set-sso-creds.ps1`) are archived in `docs/archive/scripts/aws-legacy/` for reference.
 
 ### Security Best Practices
 -  Store PATs in environment variables (done by configure-environment.ps1)

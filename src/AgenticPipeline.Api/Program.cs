@@ -41,6 +41,10 @@ builder.Services.Configure<EmbeddingSettings>(
 builder.Services.Configure<NotificationSettings>(
     builder.Configuration.GetSection(NotificationSettings.SectionName));
 
+// Configure AutoFix settings from appsettings.json
+builder.Services.Configure<AutoFixSettings>(
+    builder.Configuration.GetSection("AutoFix"));
+
 // Configure Database (SQLite with EF Core)
 builder.Services.AddDbContext<AgenticPipelineDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -86,8 +90,14 @@ builder.Services.AddHttpClient<AzureDevOpsLogService>();
 builder.Services.AddSingleton<GitHubCommentService>();
 builder.Services.AddHttpClient<TeamsNotificationService>();
 
-// Register auto-fix service
+// Register auto-fix services
+builder.Services.AddSingleton<ErrorExtractionService>();
+builder.Services.AddSingleton<FixValidationService>();
 builder.Services.AddScoped<IAutoFixService, AutoFixService>();
+
+// Register iterative retry services
+builder.Services.AddSingleton<AutoFixSessionManager>();
+builder.Services.AddScoped<IterativeAutoFixOrchestrator>();
 
 // Add CORS (if needed for frontend)
 builder.Services.AddCors(options =>

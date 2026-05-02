@@ -19,6 +19,7 @@ public class WebhookController : ControllerBase
     private readonly GitHubSettings _gitHubSettings;
     private readonly AzureDevOpsSettings _azureDevOpsSettings;
     private readonly NotificationSettings _notificationSettings;
+    private readonly AutoFixSettings _autoFixSettings;
     private readonly ILogger<WebhookController> _logger;
 
     public WebhookController(
@@ -27,6 +28,7 @@ public class WebhookController : ControllerBase
         IOptions<GitHubSettings> gitHubSettings,
         IOptions<AzureDevOpsSettings> azureDevOpsSettings,
         IOptions<NotificationSettings> notificationSettings,
+        IOptions<AutoFixSettings> autoFixSettings,
         ILogger<WebhookController> logger)
     {
         _scopeFactory = scopeFactory;
@@ -34,6 +36,7 @@ public class WebhookController : ControllerBase
         _gitHubSettings = gitHubSettings.Value;
         _azureDevOpsSettings = azureDevOpsSettings.Value;
         _notificationSettings = notificationSettings.Value;
+        _autoFixSettings = autoFixSettings.Value;
         _logger = logger;
     }
 
@@ -88,13 +91,14 @@ public class WebhookController : ControllerBase
                 }
             }
 
-            // Only process completed workflow runs that failed
+            // Process completed workflow runs (both success and failure)
             // GitHub may send action="completed" OR action="requested" with status="completed"
             bool isCompleted = payload.Action == "completed" ||
                              (payload.Action == "requested" && payload.WorkflowRun?.Status == "completed");
             bool isFailed = payload.WorkflowRun?.Conclusion == "failure";
+            bool isSuccess = payload.WorkflowRun?.Conclusion == "success";
 
-            if (!isCompleted || !isFailed)
+            if (!isCompleted)
             {
                 _logger.LogInformation(
                     "Ignoring webhook: Action={Action}, Status={Status}, Conclusion={Conclusion}",
@@ -102,32 +106,76 @@ public class WebhookController : ControllerBase
 
                 return Ok(new
                 {
-                    Message = "Webhook received but not processed (not a completed failure)",
+                    Message = "Webhook received but not processed (not completed)",
                     Action = payload.Action,
                     Status = payload.WorkflowRun?.Status,
                     Conclusion = payload.WorkflowRun?.Conclusion
                 });
             }
 
-            // Process the webhook asynchronously (fire and forget) with a new DI scope
-            _ = Task.Run(async () =>
+            // Check if this is an autofix branch success (for iterative retry PR creation)
+            var branchName = payload.WorkflowRun?.HeadBranch ?? string.Empty;
+            bool isAutoFixBranch = branchName.StartsWith("autofix/session-");
+
+            // Process successes ONLY on autofix branches
+            if (isSuccess && isAutoFixBranch)
             {
-                try
+                // Process the webhook asynchronously (fire and forget) with a new DI scope
+                _ = Task.Run(async () =>
                 {
-                    // Create a new scope for the background task to avoid DbContext disposal issues
-                    using var scope = _scopeFactory.CreateScope();
-                    await ProcessWorkflowFailureAsync(payload, scope.ServiceProvider);
-                }
-                catch (Exception ex)
+                    try
+                    {
+                        using var scope = _scopeFactory.CreateScope();
+                        await ProcessWorkflowSuccessAsync(payload, scope.ServiceProvider);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error processing workflow success asynchronously");
+                    }
+                });
+
+                return Ok(new
                 {
-                    _logger.LogError(ex, "Error processing webhook asynchronously");
-                }
-            });
+                    Message = "Workflow success on autofix branch queued for processing",
+                    WorkflowRunId = payload.WorkflowRun?.Id,
+                    Branch = branchName
+                });
+            }
+
+            // Process failures (on any branch)
+            if (isFailed)
+            {
+                // Process the webhook asynchronously (fire and forget) with a new DI scope
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        // Create a new scope for the background task to avoid DbContext disposal issues
+                        using var scope = _scopeFactory.CreateScope();
+                        await ProcessWorkflowFailureAsync(payload, scope.ServiceProvider);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error processing workflow failure asynchronously");
+                    }
+                });
+            }
+            else
+            {
+                // Success on non-autofix branch - ignore
+                return Ok(new
+                {
+                    Message = "Webhook received but not processed (success on non-autofix branch)",
+                    Action = payload.Action,
+                    Conclusion = payload.WorkflowRun?.Conclusion,
+                    Branch = branchName
+                });
+            }
 
             return Ok(new
             {
                 Message = "Webhook received and queued for processing",
-                WorkflowRunId = payload.WorkflowRun.Id,
+                WorkflowRunId = payload.WorkflowRun?.Id,
                 Repository = payload.Repository?.FullName
             });
         }
@@ -156,6 +204,8 @@ public class WebhookController : ControllerBase
             var teamsService = serviceProvider.GetService<TeamsNotificationService>();
             var githubCommentService = serviceProvider.GetService<GitHubCommentService>();
             var autoFixService = serviceProvider.GetService<IAutoFixService>();
+            var iterativeOrchestrator = serviceProvider.GetService<IterativeAutoFixOrchestrator>();
+            var sessionManager = serviceProvider.GetService<AutoFixSessionManager>();
 
             if (orchestrator == null || logService == null)
             {
@@ -211,8 +261,44 @@ public class WebhookController : ControllerBase
                 "Workflow failure analysis completed: OrchestrationId={OrchestrationId}, Status={Status}",
                 result.OrchestrationId, result.Status);
 
-            // Send notifications based on configuration
-            await SendNotificationsAsync(payload, result, teamsService, githubCommentService, autoFixService);
+            // Check if this is an autofix branch failure (iterative retry scenario)
+            var branchName = payload.WorkflowRun.HeadBranch;
+            var isAutoFixBranch = sessionManager != null && sessionManager.IsAutoFixBranch(branchName);
+
+            if (isAutoFixBranch && _autoFixSettings.EnableIterativeRetry && iterativeOrchestrator != null)
+            {
+                _logger.LogInformation(
+                    "Detected failure on autofix branch {BranchName}. Checking if ready to retry...",
+                    branchName);
+
+                // Get session to check if it's waiting
+                var session = sessionManager.GetSessionByBranch(branchName);
+                if (session != null && session.IsWaitingForPipeline)
+                {
+                    _logger.LogInformation(
+                        "Session {SessionId} pipeline completed with failure. Processing retry...",
+                        session.SessionId);
+
+                    await iterativeOrchestrator.RetryOnExistingBranchAsync(
+                        branchName,
+                        result,
+                        payload.Repository.Owner!.Login,
+                        payload.Repository.Name,
+                        _autoFixSettings,
+                        CancellationToken.None);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "Session for branch {BranchName} is not in waiting state. Ignoring failure webhook (possible duplicate or out-of-order).",
+                        branchName);
+                }
+            }
+            else
+            {
+                // Regular failure handling - send notifications and optionally start new autofix session
+                await SendNotificationsAsync(payload, result, teamsService, githubCommentService, iterativeOrchestrator);
+            }
         }
         catch (Exception ex)
         {
@@ -223,12 +309,98 @@ public class WebhookController : ControllerBase
         }
     }
 
+    private async Task ProcessWorkflowSuccessAsync(GitHubWebhookPayload payload, IServiceProvider serviceProvider)
+    {
+        try
+        {
+            if (payload.WorkflowRun == null || payload.Repository == null)
+                return;
+
+            var branchName = payload.WorkflowRun.HeadBranch;
+
+            _logger.LogInformation(
+                "Processing workflow success: RunId={RunId}, Branch={Branch}, Repo={Repo}",
+                payload.WorkflowRun.Id,
+                branchName,
+                payload.Repository.FullName);
+
+            // Resolve services
+            var iterativeOrchestrator = serviceProvider.GetService<IterativeAutoFixOrchestrator>();
+            var sessionManager = serviceProvider.GetService<AutoFixSessionManager>();
+
+            if (iterativeOrchestrator == null || sessionManager == null)
+            {
+                _logger.LogWarning("Iterative orchestrator or session manager not configured");
+                return;
+            }
+
+            // Check if this is an active autofix session
+            if (!sessionManager.IsAutoFixBranch(branchName))
+            {
+                _logger.LogInformation(
+                    "Success on branch {BranchName} but no active session found. Ignoring.",
+                    branchName);
+                return;
+            }
+
+            // Get session to check if it's waiting
+            var session = sessionManager.GetSessionByBranch(branchName);
+            if (session == null)
+            {
+                _logger.LogWarning(
+                    "No session found for successful branch {BranchName}",
+                    branchName);
+                return;
+            }
+
+            if (!session.IsWaitingForPipeline)
+            {
+                _logger.LogWarning(
+                    "Session {SessionId} is not in waiting state. Ignoring success webhook (possible duplicate).",
+                    session.SessionId);
+                return;
+            }
+
+            _logger.LogInformation(
+                "Session {SessionId} pipeline completed with success. Creating PR...",
+                session.SessionId);
+
+            // Create PR for the successful autofix branch
+            var prNumber = await iterativeOrchestrator.HandleSuccessfulPipelineAsync(
+                branchName,
+                payload.Repository.Owner!.Login,
+                payload.Repository.Name,
+                CancellationToken.None);
+
+            if (prNumber.HasValue)
+            {
+                _logger.LogInformation(
+                    "Created PR #{PrNumber} for successful autofix branch {BranchName}",
+                    prNumber.Value,
+                    branchName);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Failed to create PR for successful autofix branch {BranchName}",
+                    branchName);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Error processing workflow success for run {RunId}",
+                payload.WorkflowRun?.Id);
+        }
+    }
+
     private async Task SendNotificationsAsync(
         GitHubWebhookPayload payload,
         OrchestrationResult result,
         TeamsNotificationService? teamsService,
         GitHubCommentService? githubCommentService,
-        IAutoFixService? autoFixService)
+        IterativeAutoFixOrchestrator? iterativeOrchestrator)
     {
         try
         {
@@ -302,11 +474,12 @@ public class WebhookController : ControllerBase
                 }
             }
 
-            // Generate and apply auto-fix PR if configured
+            // Start iterative auto-fix session if configured
             if (_notificationSettings.CreateAutoFixPRs &&
+                _autoFixSettings.EnableIterativeRetry &&
                 result.Failure != null &&
                 payload.Repository != null &&
-                autoFixService != null)
+                iterativeOrchestrator != null)
             {
                 try
                 {
@@ -314,43 +487,28 @@ public class WebhookController : ControllerBase
                     if (result.Failure.ConfidenceScore >= _notificationSettings.MinConfidenceForAutoFixPR)
                     {
                         _logger.LogInformation(
-                            "Attempting to generate auto-fix for orchestration {OrchestrationId}",
+                            "Starting new iterative auto-fix session for orchestration {OrchestrationId}",
                             result.OrchestrationId);
 
-                        var autoFix = await autoFixService.GenerateFixAsync(
+                        var session = await iterativeOrchestrator.StartNewSessionAsync(
                             result,
                             payload.Repository.Owner!.Login,
-                            payload.Repository.Name);
+                            payload.Repository.Name,
+                            _autoFixSettings,
+                            CancellationToken.None);
 
-                        if (autoFix.FixGenerated && autoFix.IsSafeToApply)
+                        if (session != null)
                         {
                             _logger.LogInformation(
-                                "Auto-fix generated successfully. Creating PR...");
-
-                            var prNumber = await autoFixService.ApplyFixAndCreatePRAsync(
-                                autoFix,
-                                payload.Repository.Owner!.Login,
-                                payload.Repository.Name);
-
-                            if (prNumber.HasValue)
-                            {
-                                _logger.LogInformation(
-                                    "Created auto-fix PR #{PrNumber} for orchestration {OrchestrationId}",
-                                    prNumber.Value,
-                                    result.OrchestrationId);
-                            }
-                            else
-                            {
-                                _logger.LogWarning(
-                                    "Failed to create auto-fix PR for orchestration {OrchestrationId}",
-                                    result.OrchestrationId);
-                            }
+                                "Started auto-fix session {SessionId} on branch {BranchName}. Waiting for pipeline result...",
+                                session.SessionId,
+                                session.BranchName);
                         }
                         else
                         {
-                            _logger.LogInformation(
-                                "Auto-fix not generated or not safe to apply: {Reason}",
-                                autoFix.Reason ?? "Unknown reason");
+                            _logger.LogWarning(
+                                "Failed to start auto-fix session for orchestration {OrchestrationId}",
+                                result.OrchestrationId);
                         }
                     }
                     else
@@ -374,7 +532,7 @@ public class WebhookController : ControllerBase
     }
 
     /// <summary>
-    /// Receives Azure DevOps Service Hook webhooks for build failures
+    /// Receives Azure DevOps Service Hook webhooks for build completions (both success and failure)
     /// </summary>
     /// <param name="payload">Azure DevOps webhook payload</param>
     /// <returns>Acknowledgment response</returns>
@@ -409,47 +567,81 @@ public class WebhookController : ControllerBase
                 return BadRequest(new { Error = "Missing resource information" });
             }
 
-            // Only process failed or partially succeeded builds
-            if (payload.Resource.Result != "failed" && payload.Resource.Result != "partiallySucceeded")
+            // Check if this is a success on autofix branch (for iterative retry PR creation)
+            var isSuccess = payload.Resource.Result == "succeeded";
+            var isFailed = payload.Resource.Result == "failed" || payload.Resource.Result == "partiallySucceeded";
+
+            if (isSuccess)
             {
                 _logger.LogInformation(
-                    "Ignoring build with result: {Result} (BuildId: {BuildId})",
-                    payload.Resource.Result,
-                    payload.Resource.Id);
+                    "Processing Azure DevOps build success: BuildId={BuildId}, BuildNumber={BuildNumber}",
+                    payload.Resource.Id,
+                    payload.Resource.BuildNumber);
+
+                // Process success in background (might be autofix branch)
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        using var scope = _scopeFactory.CreateScope();
+                        await ProcessAzureDevOpsBuildSuccessAsync(payload, scope.ServiceProvider);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error processing Azure DevOps success webhook asynchronously");
+                    }
+                });
+
                 return Ok(new
                 {
-                    Status = "Ignored",
-                    Reason = $"Build result: {payload.Resource.Result}",
+                    Status = "Accepted",
                     BuildId = payload.Resource.Id,
-                    Result = payload.Resource.Result
+                    BuildNumber = payload.Resource.BuildNumber,
+                    Message = "Build success queued for processing"
                 });
             }
 
-            _logger.LogInformation(
-                "Processing Azure DevOps build failure: BuildId={BuildId}, BuildNumber={BuildNumber}",
-                payload.Resource.Id,
-                payload.Resource.BuildNumber);
-
-            // Process in background (fire-and-forget)
-            _ = Task.Run(async () =>
+            if (isFailed)
             {
-                try
-                {
-                    using var scope = _scopeFactory.CreateScope();
-                    await ProcessAzureDevOpsBuildFailureAsync(payload, scope.ServiceProvider);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error processing Azure DevOps webhook asynchronously");
-                }
-            });
+                _logger.LogInformation(
+                    "Processing Azure DevOps build failure: BuildId={BuildId}, BuildNumber={BuildNumber}",
+                    payload.Resource.Id,
+                    payload.Resource.BuildNumber);
 
+                // Process in background (fire-and-forget)
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        using var scope = _scopeFactory.CreateScope();
+                        await ProcessAzureDevOpsBuildFailureAsync(payload, scope.ServiceProvider);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error processing Azure DevOps webhook asynchronously");
+                    }
+                });
+
+                return Ok(new
+                {
+                    Status = "Accepted",
+                    BuildId = payload.Resource.Id,
+                    BuildNumber = payload.Resource.BuildNumber,
+                    Message = "Build failure analysis queued"
+                });
+            }
+
+            // Ignore other results (canceled, etc.)
+            _logger.LogInformation(
+                "Ignoring build with result: {Result} (BuildId: {BuildId})",
+                payload.Resource.Result,
+                payload.Resource.Id);
             return Ok(new
             {
-                Status = "Accepted",
+                Status = "Ignored",
+                Reason = $"Build result: {payload.Resource.Result}",
                 BuildId = payload.Resource.Id,
-                BuildNumber = payload.Resource.BuildNumber,
-                Message = "Build failure analysis queued"
+                Result = payload.Resource.Result
             });
         }
         catch (Exception ex)
@@ -476,7 +668,7 @@ public class WebhookController : ControllerBase
             var azureDevOpsLogService = serviceProvider.GetService<AzureDevOpsLogService>();
             var teamsService = serviceProvider.GetService<TeamsNotificationService>();
             var githubCommentService = serviceProvider.GetService<GitHubCommentService>();
-            var autoFixService = serviceProvider.GetService<IAutoFixService>();
+            var iterativeOrchestrator = serviceProvider.GetService<IterativeAutoFixOrchestrator>();
 
             if (orchestrator == null || azureDevOpsLogService == null)
             {
@@ -562,30 +754,189 @@ public class WebhookController : ControllerBase
                 result.OrchestrationId,
                 result.Status);
 
-            // Create fake GitHub payload for notification compatibility
-            var fakeGitHubPayload = new GitHubWebhookPayload
-            {
-                Repository = new Repository
-                {
-                    Name = githubRepo,
-                    FullName = $"{githubOwner}/{githubRepo}",
-                    Owner = new Owner { Login = githubOwner }
-                }
-            };
+            // Check if this is an autofix branch failure (iterative retry scenario)
+            var branchName = buildInfo?.SourceBranch?.Replace("refs/heads/", "") ?? "";
+            var sessionManager = serviceProvider.GetService<AutoFixSessionManager>();
+            var isAutoFixBranch = sessionManager != null && sessionManager.IsAutoFixBranch(branchName);
 
-            // Send notifications
-            await SendNotificationsAsync(
-                fakeGitHubPayload,
-                result,
-                teamsService,
-                githubCommentService,
-                autoFixService);
+            if (isAutoFixBranch && _autoFixSettings.EnableIterativeRetry && iterativeOrchestrator != null)
+            {
+                _logger.LogInformation(
+                    "Detected failure on autofix branch {BranchName}. Checking if ready to retry...",
+                    branchName);
+
+                // Get session to check if it's waiting
+                var session = sessionManager!.GetSessionByBranch(branchName);
+                if (session != null && session.IsWaitingForPipeline)
+                {
+                    _logger.LogInformation(
+                        "Session {SessionId} pipeline completed with failure. Processing retry...",
+                        session.SessionId);
+
+                    await iterativeOrchestrator.RetryOnExistingBranchAsync(
+                        branchName,
+                        result,
+                        githubOwner,
+                        githubRepo,
+                        _autoFixSettings,
+                        CancellationToken.None);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "Session for branch {BranchName} is not in waiting state. Ignoring failure webhook (possible duplicate or out-of-order).",
+                        branchName);
+                }
+            }
+            else
+            {
+                // Regular failure handling - send notifications and optionally start new autofix session
+                // Create fake GitHub payload for notification compatibility
+                var fakeGitHubPayload = new GitHubWebhookPayload
+                {
+                    Repository = new Repository
+                    {
+                        Name = githubRepo,
+                        FullName = $"{githubOwner}/{githubRepo}",
+                        Owner = new Owner { Login = githubOwner }
+                    }
+                };
+
+                // Send notifications
+                await SendNotificationsAsync(
+                    fakeGitHubPayload,
+                    result,
+                    teamsService,
+                    githubCommentService,
+                    iterativeOrchestrator);
+            }
         }
         catch (Exception ex)
         {
             _logger.LogError(
                 ex,
                 "Error processing Azure DevOps build failure for build {BuildId}",
+                payload.Resource?.Id);
+        }
+    }
+
+    private async Task ProcessAzureDevOpsBuildSuccessAsync(
+        AzureDevOpsWebhookPayload payload,
+        IServiceProvider serviceProvider)
+    {
+        try
+        {
+            if (payload.Resource == null || payload.ResourceContainers?.Project == null)
+            {
+                _logger.LogWarning("Payload missing required resource or project information");
+                return;
+            }
+
+            // Get build info to extract branch and repository details
+            var azureDevOpsLogService = serviceProvider.GetService<AzureDevOpsLogService>();
+            if (azureDevOpsLogService == null)
+            {
+                _logger.LogWarning("Azure DevOps log service not configured");
+                return;
+            }
+
+            var buildInfo = await azureDevOpsLogService.GetBuildInfoAsync(
+                _azureDevOpsSettings.Organization ?? "",
+                _azureDevOpsSettings.DefaultProject ?? "",
+                payload.Resource.Id);
+
+            var branchName = buildInfo?.SourceBranch?.Replace("refs/heads/", "") ?? "";
+
+            _logger.LogInformation(
+                "Processing Azure DevOps build success: BuildId={BuildId}, Branch={Branch}",
+                payload.Resource.Id,
+                branchName);
+
+            // Extract GitHub repo information
+            string githubOwner = "";
+            string githubRepo = "";
+
+            if (buildInfo?.Repository != null && buildInfo.Repository.Type == "GitHub")
+            {
+                var repoUrl = buildInfo.Repository.Url;
+                if (!string.IsNullOrEmpty(repoUrl))
+                {
+                    var parts = repoUrl.TrimEnd('/').Split('/');
+                    if (parts.Length >= 2)
+                    {
+                        githubRepo = parts[^1].Replace(".git", "");
+                        githubOwner = parts[^2];
+                    }
+                }
+            }
+
+            // Resolve services
+            var iterativeOrchestrator = serviceProvider.GetService<IterativeAutoFixOrchestrator>();
+            var sessionManager = serviceProvider.GetService<AutoFixSessionManager>();
+
+            if (iterativeOrchestrator == null || sessionManager == null)
+            {
+                _logger.LogWarning("Iterative orchestrator or session manager not configured");
+                return;
+            }
+
+            // Check if this is an active autofix session
+            if (!sessionManager.IsAutoFixBranch(branchName))
+            {
+                _logger.LogInformation(
+                    "Success on branch {BranchName} but no active autofix session found. Ignoring.",
+                    branchName);
+                return;
+            }
+
+            // Get session to check if it's waiting
+            var session = sessionManager.GetSessionByBranch(branchName);
+            if (session == null)
+            {
+                _logger.LogWarning(
+                    "No session found for successful branch {BranchName}",
+                    branchName);
+                return;
+            }
+
+            if (!session.IsWaitingForPipeline)
+            {
+                _logger.LogWarning(
+                    "Session {SessionId} is not in waiting state. Ignoring success webhook (possible duplicate).",
+                    session.SessionId);
+                return;
+            }
+
+            _logger.LogInformation(
+                "Session {SessionId} pipeline completed with success. Creating PR...",
+                session.SessionId);
+
+            // Create PR for the successful autofix branch
+            var prNumber = await iterativeOrchestrator.HandleSuccessfulPipelineAsync(
+                branchName,
+                githubOwner,
+                githubRepo,
+                CancellationToken.None);
+
+            if (prNumber.HasValue)
+            {
+                _logger.LogInformation(
+                    "Created PR #{PrNumber} for successful autofix branch {BranchName}",
+                    prNumber.Value,
+                    branchName);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Failed to create PR for successful autofix branch {BranchName}",
+                    branchName);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Error processing Azure DevOps build success for build {BuildId}",
                 payload.Resource?.Id);
         }
     }

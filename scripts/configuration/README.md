@@ -1,16 +1,19 @@
 # Agentic Pipeline Configuration Guide
 
-Complete setup guide for configuring GitHub and Azure DevOps credentials for the Agentic Pipeline application.
+Complete setup guide for configuring AWS, GitHub, and Azure DevOps credentials for the Agentic Pipeline application.
 
 ---
 
 ##  Overview
 
 This guide covers:
+-  AWS SSO Credentials (for Bedrock AI services)
 -  GitHub Personal Access Token (for commit analysis and auto-fix PRs)
 -  Azure DevOps Personal Access Token (for fetching build logs)
 -  Teams Webhook URL (for notifications)
 -  What goes in appsettings.json vs environment variables
+
+The `configure-environment.ps1` script handles all of this in one unified command.
 
 ---
 

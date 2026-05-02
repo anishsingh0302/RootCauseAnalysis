@@ -49,6 +49,31 @@ public class AutoFixResult
     /// PR description/body
     /// </summary>
     public string? PrBody { get; set; }
+
+    /// <summary>
+    /// Validation result (if validation was performed)
+    /// </summary>
+    public FixValidationResult? ValidationResult { get; set; }
+
+    /// <summary>
+    /// Whether validation passed
+    /// </summary>
+    public bool ValidationPassed { get; set; }
+
+    /// <summary>
+    /// Error analysis used for generating this fix
+    /// </summary>
+    public ErrorAnalysis? ErrorAnalysis { get; set; }
+
+    /// <summary>
+    /// Logs of all fix attempts made
+    /// </summary>
+    public List<FixAttemptLog> AttemptLogs { get; set; } = new();
+
+    /// <summary>
+    /// Overall confidence calculated from multiple factors
+    /// </summary>
+    public double OverallConfidence { get; set; }
 }
 
 /// <summary>

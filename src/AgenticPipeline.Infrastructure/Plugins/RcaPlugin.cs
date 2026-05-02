@@ -65,7 +65,7 @@ Analyze the provided log and respond with a JSON object following this exact str
 {
   ""rootCause"": ""Brief 1-2 sentence summary of the root cause"",
   ""detailedAnalysis"": ""Detailed explanation of what went wrong and why"",
-  ""affectedComponents"": [""list"", ""of"", ""affected"", ""files"", ""or"", ""components""],
+  ""affectedComponents"": [""path/to/file1.cs"", ""path/to/file2.csproj""],
   ""errorType"": ""One of: CompilationError, TestFailure, DependencyIssue, ConfigurationError, RuntimeError, NetworkError"",
   ""confidenceScore"": 0.95,
   ""recommendations"": [""Step 1: specific action"", ""Step 2: another action"", ""Step 3: verification step""],
@@ -83,6 +83,14 @@ Analyze the provided log and respond with a JSON object following this exact str
     }
   ]
 }
+
+CRITICAL REQUIREMENTS for affectedComponents:
+- ONLY include actual FILE PATHS that exist in the source code repository (e.g., ""Customer.API/Services/CustomerRepository.cs"", ""Customer.API.Tests/BasicTests.cs"")
+- DO NOT include build system step names (e.g., ""NuGet Restore step"", ""Build step"", ""Test step"")
+- DO NOT include generic terms (e.g., ""database"", ""configuration"", ""build system"")
+- Each component must be a valid file path with a file extension (.cs, .csproj, .json, .xml, etc.)
+- If you see errors mentioning file paths and line numbers (e.g., ""at BasicTests.cs:line 23""), include those file paths
+- Maximum 5 most relevant file paths
 
 IMPORTANT: For commitDate, use valid ISO 8601 format (e.g., ""2026-04-21T10:30:00Z"") or null if the date is not available. DO NOT use strings like ""Unknown"".
 If commit information is provided, analyze which commits are most likely responsible for the failure.

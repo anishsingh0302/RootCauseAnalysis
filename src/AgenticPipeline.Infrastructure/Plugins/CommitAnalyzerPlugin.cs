@@ -271,7 +271,8 @@ public class CommitAnalyzerPlugin
         prompt.AppendLine();
         prompt.AppendLine("## Pipeline Failure Log:");
         prompt.AppendLine("```");
-        prompt.AppendLine(failureLog.Length > 5000 ? failureLog[..5000] + "\n... (truncated)" : failureLog);
+        // No truncation - send full log content to Claude for best analysis
+        prompt.AppendLine(failureLog);
         prompt.AppendLine("```");
         prompt.AppendLine();
         prompt.AppendLine("## Recent Commits:");
